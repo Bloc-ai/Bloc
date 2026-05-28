@@ -1,3 +1,4 @@
+# Trigger sync to Supabase database
 schema: "bloc/v1"
 extends: null
 
