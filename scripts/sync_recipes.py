@@ -115,12 +115,12 @@ def sync_recipe(file_path):
     }
 
     # 5. POST/Upsert to Supabase
-    # PostgREST uses 'Prefer: resolution=merge-duplicates' to execute an upsert on unique constraint
+    # PostgREST uses 'Prefer: resolution=merge-duplicates' along with on_conflict query parameter to execute upsert
     headers = {
         "Prefer": "resolution=merge-duplicates"
     }
     
-    status, _ = make_supabase_request("/rest/v1/recipes", method="POST", headers=headers, body=recipe_payload)
+    status, _ = make_supabase_request("/rest/v1/recipes?on_conflict=creator,name", method="POST", headers=headers, body=recipe_payload)
     if status in [200, 201]:
         print(f"✅ Successfully synced recipe '{creator_username}/{metadata.get('name')}' to database!")
         return True
