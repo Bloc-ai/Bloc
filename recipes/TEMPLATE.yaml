@@ -1,0 +1,93 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  BLOC RECIPE TEMPLATE  ·  schema bloc/v1
+#  Use this template to configure and share optimized local AI setups.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+schema: "bloc/v1"
+extends: null
+
+# ─── LAYER 1: Registry Metadata (Parsed & Indexed by website) ───────────
+
+metadata:
+  name: "your-recipe-name-here" # Lowercase letters, numbers, and hyphens only
+  description: "A short, one-sentence summary showing on the registry card."
+  tags:
+    - "cuda" # cuda | metal | rocm | cpu | vulkan
+    - "8gb"  # VRAM target
+    - "reasoning"
+  author_notes: |
+    Detailed freeform instructions, findings, and experiments.
+    This shows on the recipe page to help other developers on similar hardware.
+
+model:
+  source: "huggingface:org/repo-name" # The upstream unquantized base model
+  gguf_repo: "huggingface:quantizer/repo-name-gguf" # The repository hosting the GGUF weights
+  file: "exact-filename-Q4_K_M.gguf" # Exact filename for deterministic downloads
+  download_url: "https://huggingface.co/quantizer/repo-name-gguf/resolve/main/exact-filename-Q4_K_M.gguf"
+  quantization: "Q4_K_M" # Q4_K_M, Q5_K_M, Q8_0, etc.
+  size_gb: 4.8           # Approximate file download size in gigabytes
+  parameters: "7B"       # Parameter size (e.g. 7B, 13B, 30B, 70B)
+  architecture: "Dense"   # Dense or MoE
+
+engine:
+  name: "llama.cpp"
+  variant: null           # null for mainline, or "org/repo@pr-xxx" for experimental forks
+  tested_commit: "b5350"  # Exact llama.cpp commit hash tested (run `llama-server --version`)
+
+hardware:
+  min_vram: "8GB"         # 4GB | 8GB | 12GB | 16GB | 24GB | Unified
+  target_platform: "cuda" # cuda | metal | rocm | cpu | vulkan
+  gpu_count: 1
+  recommended_ram: "16GB" # System RAM recommendation
+
+# ─── LAYER 2: Engine Config (Translated directly to llama-server flags) ────────
+
+engine_config:
+  # [ Context & Memory ]
+  ctx_size: 8192                # -c  Context window length
+  flash_attn: true              # -fa Reduce memory overhead linearly with context
+  mlock: false                  # --mlock Prevent OS from swapping weights to disk
+  mmap: true                    # mmap enabled (set false to disable mmap)
+
+  # [ GPU Offloading ]
+  gpu_layers: 99                # -ngl Number of layers to offload to GPU. 99 = all layers.
+  split_mode: null              # --split-mode  null | "none" | "layer" | "row" (multi-GPU)
+  tensor_split: null            # -ts Proportional weight split (e.g., "60,40" for dual GPU)
+  main_gpu: 0                   # -mg The GPU handling KV cache overhead and final logits
+
+  # [ Mixture of Experts (MoE) ]
+  n_cpu_moe: null               # --n-cpu-moe Number of expert blocks to offload to CPU RAM
+
+  # [ Attention & Batching ]
+  batch_size: 512               # -b Prompt ingestion batch size
+  ubatch_size: 256              # -ub Micro-batch size (smaller frees memory on tight VRAM)
+
+  # [ KV Cache Quantization ]
+  cache_type_k: "q8_0"         # -ctk Key cache compression: f16 | q8_0 | q4_0
+  cache_type_v: "q8_0"         # -ctv Value cache compression: f16 | q8_0 | q4_0
+
+  # [ Speculative Decoding ]
+  spec_type: null               # --spec-type null | "draft" | "draft-mtp"
+  spec_draft_model: null        # -md Path or huggingface pointer to draft model
+  spec_draft_n_max: null        # --spec-draft-n-max Max draft tokens to evaluate
+  spec_draft_p_min: null        # --spec-draft-p-min Acceptance threshold (0.0 to 1.0)
+
+  # [ Threading & Server ]
+  threads: 8                    # -t CPU threads to allocate (match physical cores exactly)
+  numa: null                    # --numa Node allocation for multi-socket systems
+  host: "127.0.0.1"             # --host IP to bind server to
+  port: 8080                    # --port Port to run server on
+  n_parallel: 1                 # -np Parallel inference slots
+  jinja: true                   # --jinja Required for models utilizing Jinja2 chat templates
+
+  # [ Escape Hatch ]
+  # Pass any additional CLI flags verbatim that are not exposed in the schema above.
+  extra_args: []
+
+# ─── LAYER 3: Pre-Run System Setup (Executed by CLI prior to launching server) ────────
+
+pre_run:
+  env: {}
+    # CUDA_VISIBLE_DEVICES: "0"
+  commands: []
+    # - "sudo nvidia-smi -pl 200" # Set power limit to maximize efficiency knee

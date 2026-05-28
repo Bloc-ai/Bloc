@@ -1,0 +1,90 @@
+name: Validate Recipe PR
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'recipes/**/*.yaml'
+      - 'recipes/**/*.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history needed to compare branch diffs
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyYAML
+
+      - name: Enforce Contributor Scope
+        run: |
+          AUTHOR="${{ github.event.pull_request.user.login }}"
+          # Find all changed files inside recipes directory
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'recipes/**/*.yaml' 'recipes/**/*.yml')
+          
+          echo "PR Author: $AUTHOR"
+          echo "Allowed Directory Prefix: recipes/$AUTHOR/"
+          echo "Changed Files:"
+          echo "$CHANGED_FILES"
+          
+          if [[ -z "$CHANGED_FILES" ]]; then
+            echo "No recipe files changed."
+            exit 0
+          fi
+          
+          VIOLATIONS=""
+          while IFS= read -r FILE; do
+            [[ -z "$FILE" ]] && continue
+            EXPECTED_PREFIX="recipes/${AUTHOR}/"
+            if [[ "$FILE" != ${EXPECTED_PREFIX}* ]]; then
+              VIOLATIONS="$VIOLATIONS\n  - $FILE"
+            fi
+          done <<< "$CHANGED_FILES"
+          
+          if [[ -n "$VIOLATIONS" ]]; then
+            echo -e "❌ ERROR: PR contains recipe changes outside your namespace folder!$VIOLATIONS"
+            echo ""
+            echo "Community contributors are only allowed to add or modify files inside:"
+            echo "recipes/${AUTHOR}/"
+            exit 1
+          fi
+          
+          echo "✅ Contributor namespace checks passed successfully!"
+
+      - name: Schema Validation & Name Matching Checks
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'recipes/**/*.yaml' 'recipes/**/*.yml')
+          
+          for FILE in $CHANGED_FILES; do
+            [[ -z "$FILE" ]] && continue
+            
+            # 1. Run python schema validation script
+            echo "Validating schema for: $FILE"
+            python scripts/validate_recipe.py "$FILE"
+            
+            # 2. Check metadata.name matches the filename exactly
+            FILENAME=$(basename "$FILE")
+            FILENAME_NO_EXT="${FILENAME%.*}"
+            
+            # Read name from yaml using python
+            RECIPE_NAME=$(python -c "import yaml; print(yaml.safe_load(open('$FILE'))['metadata']['name'])")
+            
+            if [[ "$FILENAME_NO_EXT" != "$RECIPE_NAME" ]]; then
+              echo "❌ ERROR: File name '$FILENAME' (base: '$FILENAME_NO_EXT') does not match 'metadata.name' value '$RECIPE_NAME' inside the file!"
+              exit 1
+            fi
+            echo "✅ Name matching check passed for: $FILE ($RECIPE_NAME)"
+          done

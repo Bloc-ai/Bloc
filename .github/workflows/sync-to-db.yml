@@ -1,0 +1,46 @@
+name: Sync Recipes to Database
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'recipes/**/*.yaml'
+      - 'recipes/**/*.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Fetch the merge commit and its immediate parent
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyYAML
+
+      - name: Get Changed Files
+        id: changed-files
+        run: |
+          # Get list of added/modified recipe files in the latest push
+          FILES=$(git diff --name-only HEAD~1 HEAD -- 'recipes/**/*.yaml' 'recipes/**/*.yml' | tr '\n' ' ')
+          echo "Files to sync: $FILES"
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+
+      - name: Sync to Supabase
+        if: steps.changed-files.outputs.files != ''
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          python scripts/sync_recipes.py ${{ steps.changed-files.outputs.files }}

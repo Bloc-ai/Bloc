@@ -1,0 +1,127 @@
+schema: "bloc/v1"
+extends: null
+
+# ─── LAYER 1: Registry Metadata ──────────────────────────────────────────────
+# The Hub reads and indexes everything in this section.
+# Powers the registry card, search, and filter UI.
+
+metadata:
+  name: "qwen3-30b-moe-8gb-cpu-offload"
+  description: >
+    Qwen3-30B-A3B (MoE, 3B active params) on a single RTX 4060 Ti 8GB.
+    Offloads all 41 MoE expert blocks to CPU RAM. Achieves 49 t/s at full
+    262k native context with 3.2 GB VRAM to spare. Trades ~10% speed for
+    4x the context vs partial GPU expert loading.
+  tags:
+    - moe
+    - long-context
+    - 8gb
+    - cuda
+    - reasoning
+    - qwen3
+  author_notes: |
+    Two configs were benchmarked on RTX 4060 Ti 8GB:
+
+    [A] n_cpu_moe: 99  → all 41 expert blocks on CPU
+        ~49 t/s · 262k ctx ceiling · 4.9 GB VRAM · 3.2 GB free
+        Recommended if you need deep context (agents, long documents)
+
+    [B] n_cpu_moe: 32  → 9 expert blocks on GPU
+        ~55 t/s · 147k ctx ceiling · 7.0 GB VRAM · 1.2 GB free
+        Recommended if speed matters more than context depth
+
+    This recipe ships Config A. Switch n_cpu_moe to 32 for Config B.
+    Requires ~32 GB system RAM for full expert offload.
+    Jinja (-jinja 1) is required for Qwen3 thinking mode to work correctly.
+
+model:
+  # Base model (upstream, non-quantized)
+  source: "huggingface:Qwen/Qwen3-30B-A3B"
+
+  # GGUF quantization by bartowski
+  gguf_repo: "huggingface:bartowski/Qwen_Qwen3-30B-A3B-GGUF"
+  file: "Qwen_Qwen3-30B-A3B-Q4_K_M.gguf"
+
+  # Direct download URL — CLI uses this to pull the weights
+  download_url: "https://huggingface.co/bartowski/Qwen_Qwen3-30B-A3B-GGUF/resolve/main/Qwen_Qwen3-30B-A3B-Q4_K_M.gguf"
+
+  quantization: "Q4_K_M"
+  size_gb: 17.2           # approximate disk size
+  parameters: "30B"
+  architecture: "MoE"     # Mixture of Experts — key for UI display
+
+engine:
+  name: "llama.cpp"
+  variant: null           # mainline release — not a fork or PR branch
+  tested_commit: "b5350"  # CLI warns if local binary is older than this
+
+hardware:
+  min_vram: "8GB"
+  target_platform: "cuda"    # cuda | metal | rocm | cpu | vulkan
+  gpu_count: 1
+  recommended_ram: "32GB"    # CPU expert offload needs RAM headroom
+
+# ─── LAYER 2: Engine Config ───────────────────────────────────────────────────
+# The CLI translates these fields into llama-server flags and executes them.
+# Every field is explicit — no reliance on llama.cpp defaults.
+# null fields are silently skipped (not passed to the binary).
+
+engine_config:
+
+  # [ CONTEXT ]
+  ctx_size: 262144          # -c  full native context of Qwen3-30B-A3B
+
+  # [ GPU OFFLOADING ]
+  gpu_layers: 99            # -ngl  push all non-expert layers to GPU
+  split_mode: null          # single GPU, no split needed
+  tensor_split: null
+  main_gpu: 0
+
+  # [ MoE EXPERT ROUTING ]
+  # This is the key flag for this recipe.
+  # Offloads MoE expert blocks to CPU RAM instead of VRAM.
+  # 99 = all experts on CPU → max context, lower speed
+  # 32 = 9 experts on GPU     → less context, +10% speed
+  n_cpu_moe: 99             # --n-cpu-moe
+
+  # [ ATTENTION & BATCHING ]
+  flash_attn: true          # -fa  required for long context
+  batch_size: 512           # -b
+  ubatch_size: 256          # -ub
+
+  # [ KV CACHE ]
+  # q4_0 saves significant VRAM at 262k context depth
+  cache_type_k: "q4_0"     # -ctk  f16 | q8_0 | q4_0
+  cache_type_v: "q4_0"     # -ctv  f16 | q8_0 | q4_0
+
+  # [ SPECULATIVE DECODING ]
+  spec_type: null           # not used in this config
+  spec_draft_model: null
+  spec_draft_n_max: null
+  spec_draft_p_min: null
+
+  # [ CPU & THREADING ]
+  threads: 12               # -t  match your physical core count
+  numa: null                # single-socket system, NUMA not needed
+
+  # [ MEMORY ]
+  mlock: false              # --mlock  enable if you have enough RAM
+  mmap: true                # default memory mapping
+
+  # [ SERVER ]
+  host: "127.0.0.1"         # --host
+  port: 8080                # --port
+  n_parallel: 1             # -np
+  jinja: true               # --jinja  REQUIRED for Qwen3 thinking mode
+
+  # [ ESCAPE HATCH ]
+  # Flags not yet in the schema go here, passed verbatim to llama-server
+  extra_args: []
+
+# ─── LAYER 3: Pre-Run System Setup ───────────────────────────────────────────
+# Runs before llama-server starts. NOT llama.cpp flags.
+# CLI displays these and asks for confirmation before executing.
+
+pre_run:
+  env: {}
+  commands: []

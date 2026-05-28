@@ -1,0 +1,128 @@
+schema: "bloc/v1"
+extends: null
+
+# ─── LAYER 1: Registry Metadata ──────────────────────────────────────────────
+# The Hub reads and indexes everything in this section.
+# Powers the registry card, search, and filter UI.
+
+metadata:
+  name: "qwen3-30b-dual-gpu-speculative-100k"
+  description: >
+    Qwen3-30B across two GPUs with native MTP speculative decoding.
+    Tensor split 58/42 to account for MTP pinning the draft head + KV
+    growth on GPU1. -ub 256 is the key finding: halves per-prefill compute
+    reserve (~1.8 GB), freeing ~1.4 GB on the choking card.
+    Honest context ceiling: 102400 (Config D ran 0→94k clean).
+  tags:
+    - dual-gpu
+    - speculative-decoding
+    - mtp
+    - long-context
+    - cuda
+    - qwen3
+  author_notes: |
+    Key findings from benchmarking:
+
+    -ub 256          The main fix. Halves per-prefill compute-graph reserve
+                     (~1.8 GB), frees ~1.4 GB on the choking card.
+                     This — not KV quant — is what unlocks deep context.
+
+    --tensor-split 58,42
+                     Shift weight off GPU1 because MTP pins the draft head
+                     + growing draft KV there (~170 MiB/step).
+
+    -ctk/-ctv q4_0   Sane default for memory, but NOT the deep-ctx fix.
+
+    --spec-type draft-mtp --spec-draft-n-max 3
+                     Native MTP. No separate draft model binary needed.
+
+    -c 102400        100k is the honest ceiling. Config E's -c 153600
+                     / -ts 54,46 was only to trace the throughput curve,
+                     not for serving.
+
+    Power cap is NOT a llama.cpp flag. Set it first:
+    sudo nvidia-smi -pl 250   # both cards — 250W = efficiency knee
+                               # ~96% perf / -17% power
+
+model:
+  source: "huggingface:Qwen/Qwen3-30B-A3B"
+  gguf_repo: "huggingface:bartowski/Qwen_Qwen3-30B-A3B-GGUF"
+  file: "Qwen_Qwen3-30B-A3B-Q4_K_M.gguf"
+  download_url: "https://huggingface.co/bartowski/Qwen_Qwen3-30B-A3B-GGUF/resolve/main/Qwen_Qwen3-30B-A3B-Q4_K_M.gguf"
+  quantization: "Q4_K_M"
+  size_gb: 17.2
+  parameters: "30B"
+  architecture: "MoE"
+
+engine:
+  name: "llama.cpp"
+  variant: null
+  tested_commit: "b5350"
+
+hardware:
+  min_vram: "16GB"          # combined across two cards
+  target_platform: "cuda"
+  gpu_count: 2              # requires exactly 2 CUDA GPUs
+  recommended_ram: "32GB"
+
+# ─── LAYER 2: Engine Config ───────────────────────────────────────────────────
+# The CLI translates these fields into llama-server flags and executes them.
+# Every field is explicit — no reliance on llama.cpp defaults.
+# null fields are silently skipped (not passed to the binary).
+
+engine_config:
+
+  # [ CONTEXT ]
+  ctx_size: 102400          # -c  honest ceiling (Config D: 0→94k clean)
+
+  # [ GPU OFFLOADING ]
+  gpu_layers: 99            # -ngl  all layers to GPU
+  split_mode: "layer"       # --split-mode  layer split across GPUs
+  tensor_split: "58,42"     # -ts  skewed to compensate MTP overhead on GPU1
+  main_gpu: 0               # -mg
+
+  # [ MoE ] — not needed, using GPU for all experts in dual-GPU config
+  n_cpu_moe: null
+
+  # [ ATTENTION & BATCHING ]
+  flash_attn: true          # -fa on
+  batch_size: 512           # -b
+  ubatch_size: 256          # -ub  KEY: halves compute-graph reserve, enables deep ctx
+
+  # [ KV CACHE ]
+  cache_type_k: "q4_0"     # -ctk
+  cache_type_v: "q4_0"     # -ctv
+
+  # [ SPECULATIVE DECODING — Native MTP ]
+  # No separate draft model binary required.
+  # MTP (Multi-Token Prediction) built into Qwen3 architecture.
+  spec_type: "draft-mtp"    # --spec-type draft-mtp
+  spec_draft_model: null    # native MTP — no external draft model
+  spec_draft_n_max: 3       # --spec-draft-n-max
+  spec_draft_p_min: 0.75    # --spec-draft-p-min
+
+  # [ CPU & THREADING ]
+  threads: 8                # -t
+  numa: null
+
+  # [ MEMORY ]
+  mlock: false
+  mmap: true
+
+  # [ SERVER ]
+  host: "127.0.0.1"         # --host
+  port: 8080                # --port
+  n_parallel: 1             # -np 1
+  jinja: true               # --jinja
+
+  extra_args: []
+
+# ─── LAYER 3: Pre-Run System Setup ───────────────────────────────────────────
+# Runs before llama-server starts. NOT llama.cpp flags.
+# CLI displays these and asks for confirmation before executing.
+
+pre_run:
+  env:
+    CUDA_VISIBLE_DEVICES: "0,1"   # ensure both GPUs are visible
+  commands:
+    - "sudo nvidia-smi -pl 250"   # power cap both cards to efficiency knee
