@@ -61,83 +61,7 @@ function LinkedinIcon({ className = "" }: { className?: string }) {
   );
 }
 
-// Initial Mock profiles data
-const INITIAL_DEVELOPER_PROFILES: Record<string, { 
-  displayName: string; 
-  bio: string; 
-  location: string; 
-  github: string; 
-  twitter?: string;
-  linkedin?: string;
-  avatarUrl?: string;
-  role: string;
-  followersCount: number;
-  followingCount: number;
-  authId?: string;
-}> = {
-  alice: {
-    displayName: "Alice Vance",
-    bio: "High-performance compute engineer specializing in consumer-grade GPU quantizations and local LLM pipelines.",
-    location: "San Francisco, CA",
-    github: "alice-vance",
-    twitter: "alice_compute",
-    linkedin: "alicevance",
-    avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80",
-    role: "Core Contributor",
-    followersCount: 142,
-    followingCount: 89
-  },
-  qwen: {
-    displayName: "Qwen Team",
-    bio: "Official optimization hub for Qwen open-weights models. Powering sovereignty in large language model configuration.",
-    location: "Hangzhou, China",
-    github: "QwenLM",
-    twitter: "QwenLM",
-    role: "Verified Publisher",
-    followersCount: 1205,
-    followingCount: 3
-  },
-  arnav: {
-    displayName: "Arnav Gautam",
-    bio: "AI infrastructure developer. Building Bloc to streamline low-latency offline deployments and team intelligence systems.",
-    location: "New Delhi, India",
-    github: "arnav080",
-    twitter: "arnavg_dev",
-    linkedin: "arnavgautam",
-    avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80",
-    role: "Creator",
-    followersCount: 84,
-    followingCount: 56
-  },
-  mistral: {
-    displayName: "Mistral AI",
-    bio: "Official configurations and local hardware tunings for Mistral open models.",
-    location: "Paris, France",
-    github: "mistralai",
-    twitter: "MistralAI",
-    role: "Verified Publisher",
-    followersCount: 890,
-    followingCount: 1
-  },
-  google: {
-    displayName: "Google Gemma",
-    bio: "Official target-quantizations for Google's lightweight open model family Gemma 2.",
-    location: "Mountain View, CA",
-    github: "google-gemma",
-    role: "Verified Publisher",
-    followersCount: 2310,
-    followingCount: 0
-  }
-};
-
-// Simple mock list of users for Followers/Following lists
-const MOCK_USERS_LIST = [
-  { username: "alice", displayName: "Alice Vance", role: "Core Contributor", location: "San Francisco, CA" },
-  { username: "arnav", displayName: "Arnav Gautam", role: "Creator", location: "New Delhi, India" },
-  { username: "qwen", displayName: "Qwen Team", role: "Verified Publisher", location: "Hangzhou, China" },
-  { username: "mistral", displayName: "Mistral AI", role: "Verified Publisher", location: "Paris, France" },
-  { username: "google", displayName: "Google Gemma", role: "Verified Publisher", location: "Mountain View, CA" }
-];
+// No mock developer profiles fallback - all profiles are loaded from database dynamically.
 
 export default function UserProfilePage() {
   const params = useParams();
@@ -149,7 +73,7 @@ export default function UserProfilePage() {
   const isSelf = user?.username?.toLowerCase() === usernameKey;
 
   // Profiles State
-  const [profiles, setProfiles] = useState(INITIAL_DEVELOPER_PROFILES);
+  const [profiles, setProfiles] = useState<Record<string, any>>({});
 
   // Load profile from Supabase dynamically if available
   useEffect(() => {
@@ -219,17 +143,12 @@ export default function UserProfilePage() {
     linkedin: "",
     avatarUrl: "",
     role: "Contributor",
-    followersCount: 3,
-    followingCount: 2
+    followersCount: 0,
+    followingCount: 0
   };
 
   // Follow State
-  const [followedUsers, setFollowedUsers] = useState<Record<string, boolean>>({
-    alice: true,
-    qwen: false,
-    mistral: false,
-    google: false
-  });
+  const [followedUsers, setFollowedUsers] = useState<Record<string, boolean>>({});
   const isFollowingThisUser = followedUsers[usernameKey] || false;
 
   // Active Tab
