@@ -23,8 +23,31 @@ const silkscreen = Silkscreen({
 export const metadata: Metadata = {
   title: "Bloc",
   description: "The Docker Hub for local AI models. Pull and run optimized LLMs instantly.",
+  metadataBase: new URL("https://bloc-theta.vercel.app"),
   icons: {
     icon: "/images/favicon.ico",
+  },
+  openGraph: {
+    title: "Bloc Hub",
+    description: "The local-first model registry and deployment toolchain.",
+    url: "https://bloc-theta.vercel.app",
+    siteName: "Bloc Hub",
+    images: [
+      {
+        url: "/images/Bloc-card-large.png",
+        width: 1200,
+        height: 630,
+        alt: "Bloc Hub Link Preview Cover",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Bloc Hub",
+    description: "Pull and run optimized local AI environments instantly.",
+    images: ["/images/Bloc-card-large.png"],
   },
 };
 
