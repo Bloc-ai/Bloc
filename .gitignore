@@ -1,0 +1,99 @@
+# OS files
+.DS_Store
+.DS_Store?
+*~
+.#*
+gpg.rules
+Thumbs.db
+desktop.ini
+
+# Node / Next.js (bloc-hub)
+node_modules/
+.next/
+out/
+build/
+.open-next/
+next-env.d.ts
+.tsbuildinfo
+next-server.js.tar
+.serverless/
+.output/
+
+# Env secrets (Never commit API keys or database credentials)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Python (cli)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+/lib/
+/lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+pyenv/
+.env-py/
+
+# Poetry / Pipenv lock files and environments
+.poetry/
+.pipenv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Testing & Coverage
+htmlcov/
+.tox/
+.nosexy/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Local Model Weights & Cache (Very important to prevent committing multi-GB files!)
+*.gguf
+.bloc/
+models/
+downloads/
+cache/
+
+# IDEs & Editors
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Project Notes
+notes/
+

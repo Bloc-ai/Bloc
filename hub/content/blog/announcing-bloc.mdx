@@ -1,0 +1,28 @@
+---
+title: Announcing Bloc Hub - Local AI Deployments Made Portable
+description: Today we are announcing Bloc Hub, an open platform for compiling, publishing, and running optimized local AI environments in a single command.
+date: 2026-05-27
+authors: ["Arnav Gautam"]
+tag: Systems
+---
+
+# Announcing Bloc Hub
+
+Running large language models locally has evolved rapidly, but compiling, optimization, and dependency configurations are still highly fragile. Developers often spend hours wrestling with CUDA versions, llama.cpp makefiles, and tokenizers just to run a model.
+
+We built **Bloc Hub** to solve these issues. Bloc acts as a portable image registry for local AI runtimes, enabling you to package:
+- Quantized GGUF weights
+- Custom engine configs (threads, GPU context, flash attention)
+- Reproducible environments
+
+## The Single-Command AI Stack
+
+Anyone on your team can now pull and launch the identical local-first setup in seconds:
+
+```bash
+bloc deploy arnav/qwen-3.5-9b-super
+```
+
+This is only the beginning of collaborative, decentralized AI infrastructure. By removing the developer friction of local model management, we hope to enable standard, reproducible AI environments.
+
+Stay tuned for more systems architecture updates soon!

@@ -1,0 +1,189 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@source "../node_modules/fumadocs-ui/dist/**/*.js";
+
+@custom-variant dark (&:is(.dark *));
+
+html {
+  font-size: 90%;
+}
+
+:root {
+  --fd-header-height: 48px;
+  --font-mono: var(--font-geist-mono), ui-mono, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-silkscreen: var(--font-silkscreen), cursive;
+  --font-switzer: 'Switzer', sans-serif;
+
+  /* Light Mode (Default) Colors */
+  --background: #f6f6f3;
+  --foreground: #171616;
+  --card: #ffffff;
+  --card-foreground: #171616;
+  --popover: #ffffff;
+  --popover-foreground: #171616;
+  --primary: #2563EB;
+  --primary-foreground: #ffffff;
+  --secondary: #e5e5e0;
+  --secondary-foreground: #171616;
+  --muted: #ededeb;
+  --muted-foreground: #666660;
+  --accent: #2563EB;
+  --accent-foreground: #ffffff;
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: rgba(0, 0, 0, 0.08);
+  --input: rgba(0, 0, 0, 0.06);
+  --ring: rgba(37, 99, 235, 0.3);
+  --radius: 0.625rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    background-color: #f6f6f3;
+    color: #171616;
+    font-family: var(--font-mono);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    position: relative;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: 
+      /* Major Grid Lines (every 120px) */
+      linear-gradient(to right, rgba(23, 22, 22, 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(23, 22, 22, 0.04) 1px, transparent 1px),
+      /* Minor Grid Lines (every 12px) */
+      linear-gradient(to right, rgba(23, 22, 22, 0.015) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(23, 22, 22, 0.015) 1px, transparent 1px);
+    background-size: 120px 120px, 120px 120px, 12px 12px, 12px 12px;
+  }
+
+  .dark body {
+    background-color: #171616;
+    color: #ffffff;
+  }
+
+  .dark body::before {
+    background-image: 
+      /* Major Grid Lines (every 120px) */
+      linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+      /* Minor Grid Lines (every 12px) */
+      linear-gradient(to right, rgba(255, 255, 255, 0.008) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.008) 1px, transparent 1px);
+  }
+
+  h1, h2, h3, h4, h5, h6, p, span, a, button, input, textarea {
+    font-family: var(--font-mono);
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+.font-switzer, h1.font-switzer, p.font-switzer, span.font-switzer {
+  font-family: var(--font-switzer), sans-serif !important;
+}
+
+.font-silkscreen, span.font-silkscreen {
+  font-family: var(--font-silkscreen), cursive !important;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.hover-glass:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+@theme inline {
+  --font-switzer: var(--font-switzer), sans-serif;
+  --font-silkscreen: var(--font-silkscreen), cursive;
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+.dark {
+  /* Dark Mode Colors */
+  --background: #171616;
+  --foreground: #ffffff;
+  --card: #201f1f;
+  --card-foreground: #ffffff;
+  --popover: #201f1f;
+  --popover-foreground: #ffffff;
+  --primary: #2563EB;
+  --primary-foreground: #ffffff;
+  --secondary: #2a2929;
+  --secondary-foreground: #ffffff;
+  --muted: #262525;
+  --muted-foreground: #a09f9f;
+  --accent: #2563EB;
+  --accent-foreground: #ffffff;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: rgba(37, 99, 235, 0.5);
+}
+
+/* Lock scroll on the body and main content wrapper specifically when on docs pages */
+#nd-docs-layout {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+}
+#nd-docs-layout main {
+  height: 100dvh !important;
+  overflow: hidden !important;
+}
+
+/* Ensure the main page container in Fumadocs is independently scrollable */
+#nd-docs-layout > [grid-area="main"],
+#nd-docs-layout > main,
+#nd-docs-layout > article {
+  overflow-y: auto !important;
+}
