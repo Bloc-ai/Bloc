@@ -43,6 +43,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const handleSession = async (session: any) => {
+      if (typeof window !== "undefined") {
+        if (session?.access_token) {
+          const isSecure = window.location.protocol === "https:";
+          document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=${session.expires_in || 3600}; SameSite=Lax${isSecure ? "; Secure" : ""}`;
+        } else {
+          const isSecure = window.location.protocol === "https:";
+          document.cookie = `sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax${isSecure ? "; Secure" : ""}`;
+        }
+      }
+
       if (!session?.user) {
         setUser(null);
         setLoading(false);

@@ -59,13 +59,10 @@ function LoginContent() {
         </svg>
 
         <div className="text-center mb-8">
-          <span className="font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 border border-zinc-300 dark:border-zinc-800 bg-zinc-200/50 dark:bg-zinc-900/50 text-zinc-500 dark:text-zinc-400">
-            Secure Registry Access
-          </span>
-          <h1 className="text-3xl font-semibold tracking-tight font-switzer text-black dark:text-white mt-4 leading-tight">
+          <h1 className="text-3xl font-semibold tracking-tight font-switzer text-black dark:text-white leading-none">
             Sign in to Bloc Hub
           </h1>
-          <p className="text-zinc-500 dark:text-zinc-400 font-switzer font-medium text-xs leading-relaxed mt-2.5 max-w-sm mx-auto">
+          <p className="text-zinc-500 dark:text-zinc-400 font-switzer font-medium text-xs leading-relaxed mt-3.5 max-w-sm mx-auto">
             Discover, upload, and deploy low-latency local AI model recipes using high-performance hardware constraints.
           </p>
         </div>
