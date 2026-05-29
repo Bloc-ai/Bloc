@@ -67,8 +67,8 @@ jobs:
       - name: Build MSI using WiX Toolset
         shell: pwsh
         run: |
-          # Compile the WiX source
-          & "candle.exe" cli/installer/bloc.wxs -out dist/bloc.wixobj
+          # Compile the WiX source (-arch x64 sets Template Summary Property to x64, required by ICE80)
+          & "candle.exe" cli/installer/bloc.wxs -arch x64 -out dist/bloc.wixobj
           # Link into the MSI installer
           & "light.exe" dist/bloc.wixobj -out dist/bloc_windows_amd64.msi
 
