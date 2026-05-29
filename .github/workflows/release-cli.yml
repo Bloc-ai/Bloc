@@ -26,7 +26,7 @@ jobs:
       # SHA corresponds to goreleaser/goreleaser-action v6.3.0 (2025-05-12).
       # To update: find the new commit SHA at https://github.com/goreleaser/goreleaser-action/tags
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@9c156ee8a17a598c5a7a2e7d0829b05cbe48e5f7 # v6.3.0
+        uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
         with:
           # F-06: Pin to a specific GoReleaser version — not "latest".
           # "latest" produces non-deterministic, non-reproducible builds.
