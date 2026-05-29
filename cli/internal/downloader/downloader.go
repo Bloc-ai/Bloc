@@ -152,7 +152,7 @@ func (m *Manager) EnsureDownloaded(ctx context.Context, friendlyName, downloadUR
 			req.Header.Set("Range", fmt.Sprintf("bytes=%d-", startByte))
 		}
 		// Hugging Face requires a User-Agent
-		req.Header.Set("User-Agent", "bloc-cli/1.0 (https://bloc-hub.com)")
+		req.Header.Set("User-Agent", "bloc-cli/1.0 (https://bloc-theta.vercel.app)")
 
 		// P-06: Use package-level client with connection/header timeouts (F-07)
 		resp, err := downloadClient.Do(req)

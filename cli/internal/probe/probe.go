@@ -92,7 +92,7 @@ func InstallInstructions() string {
 
   macOS:   brew install llama.cpp
   Linux:   Download the prebuilt binary from https://github.com/ggml-org/llama.cpp/releases
-           or build from source: https://bloc-hub.com/install
+           or build from source: https://bloc-theta.vercel.app/install
 
 Once installed, re-run: bloc deploy <recipe>`
 }
@@ -135,12 +135,12 @@ func OfferInstall() bool {
 		fmt.Println("  Auto-install is not supported on Linux.")
 		fmt.Println("  Download a prebuilt binary from:")
 		fmt.Println("    https://github.com/ggml-org/llama.cpp/releases")
-		fmt.Println("  or build from source: https://bloc-hub.com/install")
+		fmt.Println("  or build from source: https://bloc-theta.vercel.app/install")
 		return false
 
 	default:
 		fmt.Println("  Auto-install is not supported on this platform.")
-		fmt.Println("  Install guide: https://bloc-hub.com/install")
+		fmt.Println("  Install guide: https://bloc-theta.vercel.app/install")
 		return false
 	}
 }

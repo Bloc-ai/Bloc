@@ -18,7 +18,7 @@ var searchLimit int
 var searchCmd = &cobra.Command{
 	Use:   "search [query]",
 	Short: "Search the Bloc recipe registry",
-	Long: `Search for recipes on bloc-hub.com. Filter by VRAM or platform.
+	Long: `Search for recipes on bloc-theta.vercel.app. Filter by VRAM or platform.
 
 Examples:
   bloc search qwen3
@@ -83,7 +83,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 
 	if len(results) == 0 {
 		fmt.Println("No recipes found. Try broadening your search.")
-		fmt.Printf("Browse all recipes at https://bloc-hub.com/registry\n")
+		fmt.Printf("Browse all recipes at https://bloc-theta.vercel.app/registry\n")
 		return nil
 	}
 

@@ -36,7 +36,7 @@ func getHubAPIBase() string {
 			return rawURL
 		}
 	}
-	return "https://bloc-hub.com/api"
+	return "https://bloc-theta.vercel.app/api"
 }
 
 // validateAPIURL ensures the override URL is safe to use.
@@ -68,7 +68,7 @@ var deployNoTelemetry bool
 var deployCmd = &cobra.Command{
 	Use:   "deploy [author/recipe]",
 	Short: "Fetch and run a recipe from the Bloc registry",
-	Long: `Fetch a recipe from bloc-hub.com, probe your hardware and llama-server
+	Long: `Fetch a recipe from bloc-theta.vercel.app, probe your hardware and llama-server
 capabilities, download the model weights if needed, and launch the server.
 
 Examples:
@@ -147,7 +147,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(os.Stderr, "     %s\n", f)
 		}
 		fmt.Fprintf(os.Stderr, "\n   Update llama.cpp to a newer build.\n")
-		fmt.Fprintf(os.Stderr, "   Install guide: https://bloc-hub.com/install\n\n")
+		fmt.Fprintf(os.Stderr, "   Install guide: https://bloc-theta.vercel.app/install\n\n")
 		return fmt.Errorf("llama-server is missing required capabilities")
 	}
 	fmt.Printf("  \033[32m✓\033[0m  %s — all required flags supported\n", probeResult.BinaryPath)
@@ -300,7 +300,7 @@ func fetchRecipe(author, name string) (*recipe.Recipe, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("recipe %q not found — check spelling or visit https://bloc-hub.com/registry", author+"/"+name)
+		return nil, fmt.Errorf("recipe %q not found — check spelling or visit https://bloc-theta.vercel.app/registry", author+"/"+name)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("server returned %d", resp.StatusCode)

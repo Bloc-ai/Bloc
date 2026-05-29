@@ -32,7 +32,7 @@ func getEndpoint() string {
 	if url := os.Getenv("BLOC_API_URL"); url != "" {
 		return url + "/telemetry"
 	}
-	return "https://bloc-hub.com/api/telemetry"
+	return "https://bloc-theta.vercel.app/api/telemetry"
 }
 
 // Payload is what we send to the Hub telemetry endpoint.

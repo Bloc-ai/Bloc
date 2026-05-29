@@ -15,7 +15,7 @@ import (
 
 var loginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Authenticate with bloc-hub.com via GitHub OAuth",
+	Short: "Authenticate with bloc-theta.vercel.app via GitHub OAuth",
 	Long: `Authenticate with Bloc Hub using the OAuth device flow.
 Your credentials are saved locally in ~/.config/bloc/auth.json.
 
@@ -38,7 +38,7 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	// ── Step 1: Request a device code from the Hub ─────────────────────────────
-	fmt.Println("\033[90m  Connecting to bloc-hub.com...\033[0m")
+	fmt.Println("\033[90m  Connecting to bloc-theta.vercel.app...\033[0m")
 	dr, err := requestDeviceCode()
 	if err != nil {
 		return fmt.Errorf("could not start login: %w", err)
@@ -101,12 +101,12 @@ func requestDeviceCode() (*deviceCodeResponse, error) {
 
 	resp, err := apiClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("network error reaching bloc-hub.com: %w", err)
+		return nil, fmt.Errorf("network error reaching bloc-theta.vercel.app: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusServiceUnavailable {
-		return nil, fmt.Errorf("bloc-hub.com is temporarily unavailable — try again shortly")
+		return nil, fmt.Errorf("bloc-theta.vercel.app is temporarily unavailable — try again shortly")
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("server returned %d", resp.StatusCode)

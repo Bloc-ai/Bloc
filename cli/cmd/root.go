@@ -25,7 +25,7 @@ var rootCmd = &cobra.Command{
 ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝ 
 
 Bloc is a CLI tool for discovering, deploying, and running
-local AI models using community-curated recipes from bloc-hub.com.
+local AI models using community-curated recipes from bloc-theta.vercel.app.
 
 Run 'bloc help' to see all available commands.`,
 	SilenceUsage:  true,

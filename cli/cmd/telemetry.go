@@ -10,7 +10,7 @@ import (
 var telemetryCmd = &cobra.Command{
 	Use:   "telemetry [on|off|show]",
 	Short: "Manage anonymous telemetry settings",
-	Long: `Control whether bloc sends anonymous usage data to bloc-hub.com.
+	Long: `Control whether bloc sends anonymous usage data to bloc-theta.vercel.app.
 
   bloc telemetry on     Enable telemetry
   bloc telemetry off    Disable telemetry
