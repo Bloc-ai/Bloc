@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="*" Name="Bloc CLI" Language="1033" Version="0.1.0" Manufacturer="Bloc" UpgradeCode="9479b183-ecd2-4c49-a1e1-fe2b41eac9f0">
+        <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+
+        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+        <MediaTemplate EmbedCab="yes" />
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFiles64Folder">
+                <Directory Id="INSTALLFOLDER" Name="Bloc" />
+            </Directory>
+        </Directory>
+
+        <DirectoryRef Id="INSTALLFOLDER">
+            <Component Id="BlocExecutable" Guid="3172e2cf-ec3a-4efd-8b01-a1e1-fe2b41eac9f0">
+                <File Id="BlocEXE" Source="bloc.exe" KeyPath="yes" />
+            </Component>
+            
+            <!-- Add installation directory to system PATH -->
+            <Component Id="BlocPathEnv" Guid="528fe2cf-ec3a-4efd-8b01-a1e1-fe2b41eac9f0">
+                <Environment Id="PATH" Name="PATH" Value="[INSTALLFOLDER]" Action="set" Part="last" System="yes" Permanent="no" />
+            </Component>
+        </DirectoryRef>
+
+        <Feature Id="ProductFeature" Title="Bloc CLI" Level="1">
+            <ComponentRef Id="BlocExecutable" />
+            <ComponentRef Id="BlocPathEnv" />
+        </Feature>
+    </Product>
+</Wix>

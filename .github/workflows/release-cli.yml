@@ -41,3 +41,41 @@ jobs:
           # and GPG_FINGERPRINT secret is added to the repository settings.
           # Signed releases let users verify binary authenticity via checksums.txt.sig.
           # GPG_FINGERPRINT: ${{ secrets.GPG_FINGERPRINT }}
+
+  release-windows-msi:
+    runs-on: windows-latest
+    needs: goreleaser
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Download Windows ZIP from release
+        shell: bash
+        run: |
+          # Wait 10 seconds to make sure Github API registers the release assets
+          sleep 10
+          gh release download ${{ github.ref_name }} --pattern "bloc_windows_amd64.zip" --dir dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract executable
+        shell: pwsh
+        run: |
+          Expand-Archive -Path dist/bloc_windows_amd64.zip -DestinationPath dist/extracted -Force
+          Copy-Item -Path dist/extracted/bloc.exe -Destination ./bloc.exe
+
+      - name: Build MSI using WiX Toolset
+        shell: pwsh
+        run: |
+          # Compile the WiX source
+          & "candle.exe" cli/installer/bloc.wxs -out dist/bloc.wixobj
+          # Link into the MSI installer
+          & "light.exe" dist/bloc.wixobj -out dist/bloc_windows_amd64.msi
+
+      - name: Upload MSI to Release
+        shell: bash
+        run: |
+          gh release upload ${{ github.ref_name }} dist/bloc_windows_amd64.msi --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
