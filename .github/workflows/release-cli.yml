@@ -19,6 +19,7 @@ jobs:
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version-file: 'cli/go.mod'
+          cache-dependency-path: 'cli/go.sum'
 
       # F-06: GoReleaser action pinned to a full commit SHA (not a floating @v6 tag).
       # A floating tag can be silently updated by an attacker who compromises the
