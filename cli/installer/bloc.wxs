@@ -13,12 +13,12 @@
         </Directory>
 
         <DirectoryRef Id="INSTALLFOLDER">
-            <Component Id="BlocExecutable" Guid="3172e2cf-ec3a-4efd-8b01-a1e1-fe2b41eac9f0">
+            <Component Id="BlocExecutable" Guid="d866a2be-7c85-48fa-8692-747d84b259f1">
                 <File Id="BlocEXE" Source="bloc.exe" KeyPath="yes" />
             </Component>
             
             <!-- Add installation directory to system PATH -->
-            <Component Id="BlocPathEnv" Guid="528fe2cf-ec3a-4efd-8b01-a1e1-fe2b41eac9f0">
+            <Component Id="BlocPathEnv" Guid="e97a31b6-d5c2-40de-b4f1-6cf1b43b67e2">
                 <Environment Id="PATH" Name="PATH" Value="[INSTALLFOLDER]" Action="set" Part="last" System="yes" Permanent="no" />
             </Component>
         </DirectoryRef>
