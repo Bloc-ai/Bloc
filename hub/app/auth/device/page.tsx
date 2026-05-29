@@ -3,11 +3,12 @@
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { Loader2, ArrowRight, Check } from "lucide-react";
 
 type PageState = "idle" | "authorizing" | "success" | "error";
 
 export default function DeviceAuthPage() {
-  const { user, loading, login } = useAuth();
+  const { user, loading } = useAuth();
   const [code, setCode] = useState("");
   const [state, setState] = useState<PageState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -73,191 +74,194 @@ export default function DeviceAuthPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-4">
-      {/* Background glow */}
-      <div
-        className="pointer-events-none fixed inset-0 z-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(99,102,241,0.12) 0%, transparent 70%)",
-        }}
-      />
+    <div className="flex-grow flex flex-col items-center justify-center p-6 min-h-[80vh] relative select-none">
+      
+      {/* Device Auth Box */}
+      <div className="relative w-full max-w-md border border-zinc-300 dark:border-zinc-800 bg-[#f6f6f3] dark:bg-[#171616] p-8 md:p-10 rounded-none shadow-xl">
+        {/* SVG Corner L-Brackets */}
+        <svg viewBox="0 0 12 12" className="absolute -top-[1px] -left-[1px] w-3 h-3 fill-black dark:fill-white pointer-events-none">
+          <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+        </svg>
+        <svg viewBox="0 0 12 12" className="absolute -top-[1px] -right-[1px] w-3 h-3 fill-black dark:fill-white scale-x-[-1] pointer-events-none">
+          <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+        </svg>
+        <svg viewBox="0 0 12 12" className="absolute -bottom-[1px] -left-[1px] w-3 h-3 fill-black dark:fill-white scale-y-[-1] pointer-events-none">
+          <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+        </svg>
+        <svg viewBox="0 0 12 12" className="absolute -bottom-[1px] -right-[1px] w-3 h-3 fill-black dark:fill-white scale-x-[-1] scale-y-[-1] pointer-events-none">
+          <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+        </svg>
 
-      <div className="relative z-10 w-full max-w-md">
-        {/* Logo */}
-        <div className="flex items-center gap-3 mb-10 justify-center">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
-              <path d="M13 3L4 14h8l-1 7 9-11h-8l1-10z" />
-            </svg>
+        {/* ── Loading State ── */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
+            <p className="text-zinc-500 font-mono text-[9px] uppercase tracking-wider mt-4">
+              Loading session...
+            </p>
           </div>
-          <span className="text-white font-semibold text-xl tracking-tight">
-            Bloc
-          </span>
-        </div>
+        )}
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-          {/* ── Loading ── */}
-          {loading && (
-            <div className="flex flex-col items-center gap-4 py-6">
-              <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-zinc-500 text-sm">Loading...</p>
+        {/* ── Success State ── */}
+        {!loading && state === "success" && (
+          <div className="flex flex-col items-center gap-6 text-center">
+            <div className="w-12 h-12 rounded-full border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-center">
+              <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-          )}
-
-          {/* ── Success ── */}
-          {!loading && state === "success" && (
-            <div className="flex flex-col items-center gap-5 py-4 text-center">
-              <div className="w-14 h-14 rounded-full bg-emerald-500/15 flex items-center justify-center">
-                <svg
-                  className="w-7 h-7 text-emerald-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-white text-xl font-semibold mb-1">
-                  CLI authorized
-                </h1>
-                <p className="text-zinc-400 text-sm">
-                  Signed in as{" "}
-                  <span className="text-white font-medium">@{authorizedAs}</span>
-                  . You can close this tab — your terminal is ready.
-                </p>
-              </div>
-              <div className="w-full bg-zinc-800/60 rounded-xl px-4 py-3 text-left">
-                <p className="text-zinc-500 text-xs font-mono">
-                  $ bloc login<br />
-                  <span className="text-emerald-400">✓ Logged in as {authorizedAs}</span>
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* ── Not signed in ── */}
-          {!loading && state !== "success" && !user && (
-            <div className="flex flex-col gap-6">
-              <div className="text-center">
-                <h1 className="text-white text-xl font-semibold mb-2">
-                  Authorize Bloc CLI
-                </h1>
-                <p className="text-zinc-400 text-sm leading-relaxed">
-                  Sign in with GitHub first, then enter the code shown in your
-                  terminal to authorize the CLI.
-                </p>
-              </div>
-
-              <button
-                onClick={handleSignIn}
-                className="flex items-center justify-center gap-3 w-full bg-white hover:bg-zinc-100 text-zinc-900 font-medium py-2.5 px-4 rounded-xl transition-colors text-sm"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                </svg>
-                Sign in with GitHub
-              </button>
-            </div>
-          )}
-
-          {/* ── Signed in — show code entry ── */}
-          {!loading && state !== "success" && user && (
-            <div className="flex flex-col gap-6">
-              <div className="text-center">
-                <h1 className="text-white text-xl font-semibold mb-2">
-                  Authorize Bloc CLI
-                </h1>
-                <p className="text-zinc-400 text-sm leading-relaxed">
-                  Enter the code shown in your terminal to grant the CLI access
-                  to your account.
-                </p>
-              </div>
-
-              {/* Signed-in badge */}
-              <div className="flex items-center gap-2 bg-zinc-800/60 rounded-xl px-4 py-2.5">
-                <img
-                  src={`https://github.com/${user.username}.png?size=32`}
-                  alt={user.username}
-                  className="w-6 h-6 rounded-full"
-                />
-                <span className="text-zinc-300 text-sm">
-                  Signed in as{" "}
-                  <span className="text-white font-medium">@{user.username}</span>
-                </span>
-              </div>
-
-              {/* Code input */}
-              <div className="flex flex-col gap-2">
-                <label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">
-                  Terminal Code
-                </label>
-                <input
-                  type="text"
-                  value={code}
-                  onChange={handleCodeChange}
-                  maxLength={9}
-                  placeholder="ABCD-1234"
-                  disabled={state === "authorizing"}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white text-center text-2xl font-mono tracking-[0.3em] placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors disabled:opacity-50"
-                  onKeyDown={(e) => e.key === "Enter" && handleAuthorize()}
-                />
-              </div>
-
-              {/* Error message */}
-              {state === "error" && errorMsg && (
-                <div className="flex items-start gap-2.5 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
-                  <svg
-                    className="w-4 h-4 text-red-400 mt-0.5 shrink-0"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <p className="text-red-400 text-sm">{errorMsg}</p>
-                </div>
-              )}
-
-              {/* Authorize button */}
-              <button
-                onClick={handleAuthorize}
-                disabled={state === "authorizing" || code.length < 9}
-                className="flex items-center justify-center gap-2 w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium py-3 px-4 rounded-xl transition-colors text-sm"
-              >
-                {state === "authorizing" ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Authorizing...
-                  </>
-                ) : (
-                  "Authorize CLI Access"
-                )}
-              </button>
-
-              <p className="text-zinc-600 text-xs text-center">
-                This grants the CLI read/write access to your Bloc account.
-                <br />
-                Run{" "}
-                <span className="font-mono text-zinc-500">bloc logout</span> at
-                any time to revoke access.
+            <div>
+              <span className="font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 border border-emerald-500/20 bg-emerald-500/5 text-emerald-650 dark:text-emerald-400 font-bold">
+                Success
+              </span>
+              <h1 className="text-3xl font-semibold tracking-tight font-switzer text-black dark:text-white mt-4 leading-none animate-fade-in">
+                CLI Authorized
+              </h1>
+              <p className="text-zinc-550 dark:text-zinc-400 font-switzer font-medium text-xs leading-relaxed mt-3.5 max-w-sm mx-auto">
+                Signed in as <span className="text-black dark:text-white font-bold">@{authorizedAs}</span>. You can now close this tab — your terminal is ready.
               </p>
             </div>
-          )}
-        </div>
 
-        <p className="text-center text-zinc-700 text-xs mt-6">
-          Bloc Hub · OAuth Device Authorization
-        </p>
+            <div className="w-full border border-zinc-300 dark:border-zinc-800 bg-zinc-200/40 dark:bg-zinc-900/40 px-4 py-3 text-left font-mono text-[11px] text-zinc-600 dark:text-zinc-400 leading-normal">
+              $ bloc login<br />
+              <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ Logged in as {authorizedAs}</span>
+            </div>
+          </div>
+        )}
+
+        {/* ── Not Signed In State ── */}
+        {!loading && state !== "success" && !user && (
+          <div className="flex flex-col gap-6">
+            <div className="text-center">
+              <h1 className="text-3xl font-semibold tracking-tight font-switzer text-black dark:text-white leading-none">
+                Authorize Bloc CLI
+              </h1>
+              <p className="text-zinc-550 dark:text-zinc-400 font-switzer font-medium text-xs leading-relaxed mt-3.5 max-w-sm mx-auto">
+                Sign in with GitHub first, then enter the code shown in your terminal to authorize the CLI.
+              </p>
+            </div>
+
+            <button
+              onClick={handleSignIn}
+              className="group relative w-full h-11 border border-zinc-850 dark:border-zinc-100 bg-black text-white dark:bg-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-100 font-mono text-[11px] uppercase font-bold tracking-wider cursor-pointer transition-all rounded-none flex items-center justify-center gap-3"
+            >
+              {/* Tactile SVGs */}
+              <svg viewBox="0 0 12 12" className="absolute top-0 left-0 w-2 h-2 fill-black dark:fill-white pointer-events-none transition-all duration-200 ease-out opacity-0 -translate-x-0.5 -translate-y-0.5 group-hover:opacity-100 group-hover:-translate-x-1.5 group-hover:-translate-y-1.5">
+                <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+              </svg>
+              <svg viewBox="0 0 12 12" className="absolute top-0 right-0 w-2 h-2 fill-black dark:fill-white scale-x-[-1] pointer-events-none transition-all duration-200 ease-out opacity-0 translate-x-0.5 -translate-y-0.5 group-hover:opacity-100 group-hover:translate-x-1.5 group-hover:-translate-y-1.5">
+                <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+              </svg>
+              <svg viewBox="0 0 12 12" className="absolute bottom-0 left-0 w-2 h-2 fill-black dark:fill-white scale-y-[-1] pointer-events-none transition-all duration-200 ease-out opacity-0 -translate-x-0.5 translate-y-0.5 group-hover:opacity-100 group-hover:-translate-x-1.5 group-hover:translate-y-1.5">
+                <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+              </svg>
+              <svg viewBox="0 0 12 12" className="absolute bottom-0 right-0 w-2 h-2 fill-black dark:fill-white scale-x-[-1] scale-y-[-1] pointer-events-none transition-all duration-200 ease-out opacity-0 translate-x-0.5 translate-y-0.5 group-hover:opacity-100 group-hover:translate-x-1.5 group-hover:translate-y-1.5">
+                <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+              </svg>
+
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+                <path d="M9 18c-4.51 2-5-2-7-2" />
+              </svg>
+              Sign In with GitHub
+            </button>
+
+            <div className="mt-2 border-t border-zinc-200 dark:border-zinc-800 pt-6 text-center font-mono text-[9px] text-zinc-400 leading-normal">
+              Secure OAuth connection handles authentication. <br />
+              We never store your GitHub passwords or read private repos.
+            </div>
+          </div>
+        )}
+
+        {/* ── Signed In — Enter Code State ── */}
+        {!loading && state !== "success" && user && (
+          <div className="flex flex-col gap-6">
+            <div className="text-center">
+              <h1 className="text-3xl font-semibold tracking-tight font-switzer text-black dark:text-white leading-none">
+                Authorize Bloc CLI
+              </h1>
+              <p className="text-zinc-550 dark:text-zinc-400 font-switzer font-medium text-xs leading-relaxed mt-3.5 max-w-sm mx-auto">
+                Enter the code shown in your terminal to grant the CLI access to your account.
+              </p>
+            </div>
+
+            {/* User Badge */}
+            <div className="relative w-full h-10 border border-zinc-300 dark:border-zinc-800 bg-zinc-200/40 dark:bg-zinc-900/40 px-3 flex items-center justify-between font-mono text-[11px] text-zinc-650 dark:text-zinc-400">
+              <div className="flex items-center gap-2">
+                <img
+                  src={user.avatar_url}
+                  alt={user.username}
+                  className="w-5 h-5 rounded-full"
+                />
+                <span>@{user.username}</span>
+              </div>
+              <div className="font-mono text-[8px] uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 font-bold">
+                Signed In
+              </div>
+            </div>
+
+            {/* Code input */}
+            <div className="flex flex-col gap-2.5">
+              <label className="block font-mono text-[9px] uppercase font-bold text-zinc-500">
+                Terminal Code
+              </label>
+              <input
+                type="text"
+                value={code}
+                onChange={handleCodeChange}
+                maxLength={9}
+                placeholder="ABCD-1234"
+                disabled={state === "authorizing"}
+                className="w-full h-12 px-3 border border-zinc-300 dark:border-zinc-800 bg-transparent text-center text-xl font-mono tracking-[0.3em] placeholder:text-zinc-300 dark:placeholder:text-zinc-700 outline-none text-black dark:text-white rounded-none disabled:opacity-50 focus:border-blue-500 transition-colors uppercase"
+                onKeyDown={(e) => e.key === "Enter" && handleAuthorize()}
+              />
+            </div>
+
+            {/* Error Message */}
+            {state === "error" && errorMsg && (
+              <div className="bg-red-500/10 border border-red-500/20 px-4 py-3 rounded-none">
+                <p className="text-red-650 dark:text-red-400 text-xs font-switzer font-medium leading-normal">{errorMsg}</p>
+              </div>
+            )}
+
+            {/* Authorize Button */}
+            <button
+              onClick={handleAuthorize}
+              disabled={state === "authorizing" || code.length < 9}
+              className="group relative w-full h-11 border border-zinc-850 dark:border-zinc-100 bg-black text-white dark:bg-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-100 font-mono text-[11px] uppercase font-bold tracking-wider cursor-pointer transition-all rounded-none flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {/* Tactile SVGs */}
+              <svg viewBox="0 0 12 12" className="absolute top-0 left-0 w-2 h-2 fill-black dark:fill-white pointer-events-none transition-all duration-200 ease-out opacity-0 -translate-x-0.5 -translate-y-0.5 group-hover:opacity-100 group-hover:-translate-x-1.5 group-hover:-translate-y-1.5">
+                <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+              </svg>
+              <svg viewBox="0 0 12 12" className="absolute top-0 right-0 w-2 h-2 fill-black dark:fill-white scale-x-[-1] pointer-events-none transition-all duration-200 ease-out opacity-0 translate-x-0.5 -translate-y-0.5 group-hover:opacity-100 group-hover:translate-x-1.5 group-hover:-translate-y-1.5">
+                <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+              </svg>
+              <svg viewBox="0 0 12 12" className="absolute bottom-0 left-0 w-2 h-2 fill-black dark:fill-white scale-y-[-1] pointer-events-none transition-all duration-200 ease-out opacity-0 -translate-x-0.5 translate-y-0.5 group-hover:opacity-100 group-hover:-translate-x-1.5 group-hover:translate-y-1.5">
+                <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+              </svg>
+              <svg viewBox="0 0 12 12" className="absolute bottom-0 right-0 w-2 h-2 fill-black dark:fill-white scale-x-[-1] scale-y-[-1] pointer-events-none transition-all duration-200 ease-out opacity-0 translate-x-0.5 translate-y-0.5 group-hover:opacity-100 group-hover:translate-x-1.5 group-hover:translate-y-1.5">
+                <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
+              </svg>
+
+              {state === "authorizing" ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Authorizing...
+                </>
+              ) : (
+                <>
+                  Authorize CLI Access
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                </>
+              )}
+            </button>
+
+            <p className="text-zinc-400 font-mono text-[9px] text-center leading-normal">
+              This grants the CLI read/write access to your Bloc account. <br />
+              Run <span className="font-semibold text-zinc-550 dark:text-zinc-350">bloc logout</span> at any time to revoke access.
+            </p>
+          </div>
+        )}
+
       </div>
     </div>
   );

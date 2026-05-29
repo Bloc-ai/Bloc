@@ -3,6 +3,19 @@
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  const origError = console.error;
+  console.error = (...args: any[]) => {
+    if (
+      typeof args[0] === "string" &&
+      args[0].includes("Encountered a script tag")
+    ) {
+      return;
+    }
+    origError.apply(console, args);
+  };
+}
+
 export default function ThemeShortcut() {
   const { theme, resolvedTheme, setTheme } = useTheme();
   // H5 Fix: cache Audio instance in a ref — not re-created on every keypress

@@ -58,10 +58,114 @@ hardware:
 
 // React cache() deduplicates identical calls within the same request
 // (e.g. the main page render + generateMetadata both call this)
+const PLATFORM_LABELS: Record<string, string> = {
+  "darwin/arm64": "Apple Silicon (M-series)",
+  "darwin/amd64": "Intel macOS",
+  "linux/amd64": "Linux x86_64",
+  "linux/arm64": "Linux ARM64",
+  "windows/amd64": "Windows x86_64",
+  "windows/arm64": "Windows ARM64",
+};
+
+function formatPlatform(platform: string): string {
+  return PLATFORM_LABELS[platform] || platform;
+}
+
+const getRecipeTelemetry = cache(async function getRecipeTelemetry(dbId: string) {
+  if (!supabase) return { total_runs: 0, success_rate: 0, benchmarks: [] };
+  
+  try {
+    const { data: events, error } = await supabase
+      .from("telemetry_events")
+      .select("os, arch, success, tokens_per_sec_generation, tokens_per_sec_prefill, recorded_at")
+      .eq("recipe_id", dbId)
+      .order("recorded_at", { ascending: false })
+      .limit(1000);
+      
+    if (error) throw error;
+    if (!events || events.length === 0) {
+      return { total_runs: 0, success_rate: 0, benchmarks: [] };
+    }
+    
+    let totalRuns = 0;
+    let successRuns = 0;
+
+    interface PlatformStats {
+      runs: number;
+      successRuns: number;
+      tokensSum: number;
+      tokensCount: number;
+      prefillSum: number;
+      prefillCount: number;
+      latestRun: string;
+    }
+
+    const groups: Record<string, PlatformStats> = {};
+
+    for (const event of events) {
+      totalRuns++;
+      if (event.success) {
+        successRuns++;
+      }
+
+      const platform = `${event.os || "unknown"}/${event.arch || "unknown"}`;
+      if (!groups[platform]) {
+        groups[platform] = {
+          runs: 0,
+          successRuns: 0,
+          tokensSum: 0,
+          tokensCount: 0,
+          prefillSum: 0,
+          prefillCount: 0,
+          latestRun: event.recorded_at,
+        };
+      }
+
+      const g = groups[platform];
+      g.runs++;
+      if (event.success) {
+        g.successRuns++;
+      }
+
+      if (event.tokens_per_sec_generation != null) {
+        g.tokensSum += Number(event.tokens_per_sec_generation);
+        g.tokensCount++;
+      }
+      if (event.tokens_per_sec_prefill != null) {
+        g.prefillSum += Number(event.tokens_per_sec_prefill);
+        g.prefillCount++;
+      }
+
+      if (new Date(event.recorded_at) > new Date(g.latestRun)) {
+        g.latestRun = event.recorded_at;
+      }
+    }
+
+    const benchmarks = Object.entries(groups).map(([platform, g]) => ({
+      platform,
+      runs: g.runs,
+      avg_tokens_per_sec: g.tokensCount > 0 ? parseFloat((g.tokensSum / g.tokensCount).toFixed(1)) : 0,
+      avg_prefill_tokens_per_sec: g.prefillCount > 0 ? parseFloat((g.prefillSum / g.prefillCount).toFixed(1)) : 0,
+      latest_run: g.latestRun,
+    }));
+
+    const successRate = totalRuns > 0 ? parseFloat((successRuns / totalRuns).toFixed(2)) : 0;
+
+    return {
+      total_runs: totalRuns,
+      success_rate: successRate,
+      benchmarks,
+    };
+  } catch (e) {
+    console.error("Error fetching telemetry stats:", e);
+  }
+  return { total_runs: 0, success_rate: 0, benchmarks: [] };
+});
+
 const getRecipe = cache(async function getRecipe(
   author: string,
   name: string
-): Promise<Recipe | null> {
+): Promise<(Recipe & { dbId?: string }) | null> {
   const recipeId = `${author}/${name}`;
   const mockRecipe = registryRecipes.find((r) => r.id === recipeId);
   if (mockRecipe) return mockRecipe;
@@ -91,6 +195,7 @@ const getRecipe = cache(async function getRecipe(
 
       return {
         id: `${data.creator}/${data.name}`,
+        dbId: data.id,
         name: data.name,
         creator: data.creator,
         description: data.description || "",
@@ -126,6 +231,11 @@ export default async function RecipeDetailPage(props: PageProps) {
 
   const isMock = registryRecipes.some((r) => r.id === recipe.id);
   const yaml = recipe.yamlContent || generateFallbackYaml(recipe);
+
+  // Fetch real telemetry benchmarks if not a mock recipe
+  const telemetry = recipe.dbId 
+    ? await getRecipeTelemetry(recipe.dbId)
+    : { total_runs: 0, success_rate: 0, benchmarks: [] };
 
   return (
     <div className="max-w-4xl w-full mx-auto px-6 py-16 select-none">
@@ -227,27 +337,59 @@ export default async function RecipeDetailPage(props: PageProps) {
 
         {/* Right Column: Telemetry Performance (5/12) */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          <h2 className="text-xl font-semibold font-switzer tracking-tight text-black dark:text-white border-b border-zinc-200 dark:border-zinc-800 pb-2">
-            Telemetry Benchmarks
+          <h2 className="text-xl font-semibold font-switzer tracking-tight text-black dark:text-white border-b border-zinc-200 dark:border-zinc-800 pb-2 flex items-center justify-between flex-wrap gap-2">
+            <span>Telemetry Benchmarks</span>
+            {telemetry.total_runs > 0 && (
+              <span className="font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
+                ✓ {(telemetry.success_rate * 100).toFixed(0)}% success ({telemetry.total_runs} runs)
+              </span>
+            )}
           </h2>
           
           <div className="border border-zinc-300 dark:border-zinc-800 bg-[#f6f6f3]/50 dark:bg-[#171616]/50 p-6 rounded-none">
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3 mb-4 font-mono text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-              <span>Verified GPU Node</span>
-              <span>Avg Speed</span>
-            </div>
-            
-            <div className="flex flex-col gap-4 font-mono text-xs">
-              {recipe.telemetry.benchmarks.map((bench, idx) => (
-                <div key={idx} className="flex justify-between items-center gap-4">
-                  <div className="flex flex-col">
-                    <span className="text-zinc-800 dark:text-zinc-200 font-bold">{bench.gpu}</span>
-                    <span className="text-[9px] text-zinc-400 dark:text-zinc-500">({bench.runs} telemetry runs)</span>
-                  </div>
-                  <span className="text-blue-600 dark:text-blue-400 font-bold shrink-0">{bench.tokensPerSec} t/s</span>
+            {telemetry.benchmarks.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center select-none font-mono text-[9px] text-zinc-400 dark:text-zinc-500">
+                <p className="font-bold uppercase tracking-wider mb-2">No runs recorded yet</p>
+                <p className="max-w-xs leading-relaxed mb-4">
+                  Be the first to benchmark this recipe! Run the deploy command from your terminal:
+                </p>
+                <div className="px-3 py-1.5 border border-zinc-300 dark:border-zinc-800 bg-zinc-200/40 dark:bg-zinc-900/40 text-zinc-800 dark:text-zinc-200 text-[10px] w-full font-bold select-text break-all">
+                  bloc deploy {recipe.id}
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3 mb-4 font-mono text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                  <span>Target Platform</span>
+                  <span>Avg Speed</span>
+                </div>
+                
+                <div className="flex flex-col gap-5 font-mono text-xs">
+                  {telemetry.benchmarks.map((bench, idx) => (
+                    <div key={idx} className="flex justify-between items-center gap-4 border-b border-zinc-200/40 dark:border-zinc-800/40 pb-3 last:border-b-0 last:pb-0">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-zinc-800 dark:text-zinc-200 font-bold">
+                          {formatPlatform(bench.platform)}
+                        </span>
+                        <span className="text-[9px] text-zinc-400 dark:text-zinc-500 leading-none">
+                          ({bench.runs} telemetry runs)
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end gap-0.5 shrink-0">
+                        <span className="text-blue-600 dark:text-blue-400 font-bold">
+                          {bench.avg_tokens_per_sec} t/s <span className="text-[9px] font-medium text-zinc-400 dark:text-zinc-500">gen</span>
+                        </span>
+                        {bench.avg_prefill_tokens_per_sec > 0 && (
+                          <span className="text-zinc-550 dark:text-zinc-450 font-medium text-[9px] leading-none">
+                            {bench.avg_prefill_tokens_per_sec} t/s <span className="text-[8px] text-zinc-400 dark:text-zinc-500">prefill</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 

@@ -13,7 +13,7 @@ function generateUserCode(): string {
   return `${seg()}-${seg()}`;
 }
 
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   const supabase = getSupabaseAdmin();
   if (!supabase) {
     return NextResponse.json(
@@ -41,10 +41,11 @@ export async function POST(_req: NextRequest) {
     );
   }
 
+  const origin = req.nextUrl.origin;
   return NextResponse.json({
     device_code: deviceCode,
     user_code: userCode,
-    verification_url: "https://bloc-hub.com/auth/device",
+    verification_url: `${origin}/auth/device`,
     expires_in: 900, // seconds
   });
 }
