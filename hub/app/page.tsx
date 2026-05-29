@@ -635,18 +635,18 @@ export default function Home() {
                 <h4 className="text-[11px] font-mono font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-[0.2em] mb-1">Product</h4>
                 <ul className="flex flex-col gap-2.5">
                   <li>
-                    <Link href="/product" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
-                      Features
+                    <Link href="/registry" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                      Registry
                     </Link>
                   </li>
                   <li>
-                    <Link href="/product" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
-                      Pricing
+                    <Link href="/feed" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                      Feed
                     </Link>
                   </li>
                   <li>
-                    <Link href="/product" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
-                      Hardware
+                    <Link href="/installation" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                      CLI Setup
                     </Link>
                   </li>
                 </ul>
@@ -662,30 +662,35 @@ export default function Home() {
                     </Link>
                   </li>
                   <li>
-                    <Link href="https://github.com/bloc-ai" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                    <Link href="https://github.com/arnav080/Bloc" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
                       GitHub
                     </Link>
                   </li>
                   <li>
-                    <Link href="https://discord.gg/bloc" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
-                      Discord
+                    <Link href="/registry/submit" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                      Submit Recipe
                     </Link>
                   </li>
                 </ul>
               </div>
 
-              {/* Legal */}
+              {/* Repositories */}
               <div className="flex flex-col gap-4 min-w-[120px]">
-                <h4 className="text-[11px] font-mono font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-[0.2em] mb-1">Legal</h4>
+                <h4 className="text-[11px] font-mono font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-[0.2em] mb-1">Repositories</h4>
                 <ul className="flex flex-col gap-2.5">
                   <li>
-                    <Link href="#" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
-                      Privacy
+                    <Link href="https://github.com/arnav080/Bloc/tree/main/cli" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                      Go CLI Client
                     </Link>
                   </li>
                   <li>
-                    <Link href="#" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
-                      Terms
+                    <Link href="https://github.com/arnav080/Bloc/tree/main/hub" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                      Next.js Hub
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="https://github.com/arnav080/Bloc/issues" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                      Feedback
                     </Link>
                   </li>
                 </ul>
