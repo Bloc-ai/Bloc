@@ -710,7 +710,7 @@ export default function UserProfilePage() {
               {profile.avatarUrl ? (
                 <Image src={profile.avatarUrl} alt={profile.displayName} width={96} height={96} className="w-full h-full object-cover rounded-none" unoptimized />
               ) : (
-                profile.displayName.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase()
+                profile.displayName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()
               )}
             </div>
 

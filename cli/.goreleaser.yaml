@@ -1,0 +1,98 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+
+version: 2
+
+project_name: bloc
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+
+builds:
+  - id: bloc
+    binary: bloc
+    main: ./main.go
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/bloc-org/bloc/cmd.Version={{.Version}}
+      - -X github.com/bloc-org/bloc/cmd.BuildCommit={{.ShortCommit}}
+      - -X github.com/bloc-org/bloc/cmd.BuildDate={{.Date}}
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - id: bloc
+    name_template: >-
+      {{ .ProjectName }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+signs:
+  - artifacts: checksum
+    args:
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - Merge pull request
+
+release:
+  github:
+    owner: bloc-org
+    name: bloc
+  name_template: "v{{.Version}}"
+
+# Homebrew tap: brew install bloc-org/bloc/bloc
+brews:
+  - name: bloc
+    repository:
+      owner: bloc-org
+      name: homebrew-bloc
+    homepage: "https://bloc-hub.com"
+    description: "CLI to discover and run local AI models using community recipes"
+    license: "MIT"
+    install: |
+      bin.install "bloc"
+    test: |
+      system "#{bin}/bloc", "version"
+
+# Linux packages: apt + rpm
+nfpms:
+  - id: bloc
+    package_name: bloc
+    vendor: Bloc
+    homepage: https://bloc-hub.com
+    maintainer: Bloc Team <team@bloc-hub.com>
+    description: CLI to discover and run local AI models using community recipes
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/local/bin
