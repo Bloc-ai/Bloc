@@ -43,17 +43,6 @@ checksum:
   name_template: "checksums.txt"
   algorithm: sha256
 
-signs:
-  - artifacts: checksum
-    args:
-      - "--batch"
-      - "--local-user"
-      - "{{ .Env.GPG_FINGERPRINT }}"
-      - "--output"
-      - "${signature}"
-      - "--detach-sign"
-      - "${artifact}"
-
 changelog:
   sort: asc
   filters:
@@ -64,24 +53,7 @@ changelog:
       - Merge pull request
 
 release:
-  github:
-    owner: bloc-org
-    name: bloc
   name_template: "v{{.Version}}"
-
-# Homebrew tap: brew install bloc-org/bloc/bloc
-brews:
-  - name: bloc
-    repository:
-      owner: bloc-org
-      name: homebrew-bloc
-    homepage: "https://bloc-hub.com"
-    description: "CLI to discover and run local AI models using community recipes"
-    license: "MIT"
-    install: |
-      bin.install "bloc"
-    test: |
-      system "#{bin}/bloc", "version"
 
 # Linux packages: apt + rpm
 nfpms:
