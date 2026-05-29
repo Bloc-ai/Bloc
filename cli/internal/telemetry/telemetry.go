@@ -113,25 +113,23 @@ func Send(recipeID string, stats *runner.Stats) {
 		DurationSeconds:        stats.Duration.Seconds(),
 	}
 
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
 
-		body, _ := json.Marshal(payload)
-		req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
-		if err != nil {
-			return
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", "bloc-cli/"+CLIVersion)
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("User-Agent", "bloc-cli/"+CLIVersion)
 
-		// P-02: Use dedicated telemetryClient, not http.DefaultClient
-		resp, err := telemetryClient.Do(req)
-		if err != nil {
-			return // silently ignore — network errors must not affect UX
-		}
-		resp.Body.Close()
-	}()
+	// P-02: Use dedicated telemetryClient, not http.DefaultClient
+	resp, err := telemetryClient.Do(req)
+	if err != nil {
+		return // silently ignore — network errors must not affect UX
+	}
+	resp.Body.Close()
 }
 
 // newInvocationID generates a random per-invocation identifier for deduplication.
