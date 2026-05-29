@@ -36,6 +36,7 @@ jobs:
           workdir: cli/
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
           # F-06: GPG signing — enable once bloc-org/homebrew-bloc repo is created
           # and GPG_FINGERPRINT secret is added to the repository settings.
           # Signed releases let users verify binary authenticity via checksums.txt.sig.

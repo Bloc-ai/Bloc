@@ -68,3 +68,16 @@ nfpms:
       - deb
       - rpm
     bindir: /usr/local/bin
+
+brews:
+  - name: bloc
+    repository:
+      owner: arnav080
+      name: homebrew-bloc
+    commit_author:
+      name: Bloc Team
+      email: arnav00782@gmail.com
+    homepage: "https://bloc-theta.vercel.app/"
+    description: "CLI to discover and run local AI models using community recipes"
+    install: |
+      bin.install "bloc"
