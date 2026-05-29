@@ -13,13 +13,16 @@
         </Directory>
 
         <DirectoryRef Id="INSTALLFOLDER">
-            <Component Id="BlocExecutable" Guid="d866a2be-7c85-48fa-8692-747d84b259f1">
+            <!-- Win64="yes" is required for components inside ProgramFiles64Folder (ICE80) -->
+            <Component Id="BlocExecutable" Guid="d866a2be-7c85-48fa-8692-747d84b259f1" Win64="yes">
                 <File Id="BlocEXE" Source="bloc.exe" KeyPath="yes" />
             </Component>
-            
+
             <!-- Add installation directory to system PATH -->
-            <Component Id="BlocPathEnv" Guid="e97a31b6-d5c2-40de-b4f1-6cf1b43b67e2">
+            <!-- Win64="yes" required (ICE80); RegistryValue provides the KeyPath (ICE18) -->
+            <Component Id="BlocPathEnv" Guid="e97a31b6-d5c2-40de-b4f1-6cf1b43b67e2" Win64="yes">
                 <Environment Id="PATH" Name="PATH" Value="[INSTALLFOLDER]" Action="set" Part="last" System="yes" Permanent="no" />
+                <RegistryValue Root="HKLM" Key="Software\Bloc" Name="PathConfigured" Value="1" Type="integer" KeyPath="yes" />
             </Component>
         </DirectoryRef>
 
