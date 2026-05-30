@@ -298,15 +298,9 @@ export default function FeedPage() {
 
       {/* Feed Header */}
       <div className="mb-10 text-left border-b border-zinc-200 dark:border-zinc-800 pb-8">
-        <span className="font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 border border-zinc-300 dark:border-zinc-800 text-zinc-550 dark:text-zinc-400 bg-zinc-200/50 dark:bg-zinc-900/50 font-bold">
-          Builder Streams
-        </span>
-        <h1 className="text-4xl font-semibold tracking-tight font-switzer text-black dark:text-white mt-4 leading-none">
-          Your Optimization Feed
+        <h1 className="text-4xl font-semibold tracking-tight font-switzer text-black dark:text-white leading-none">
+          Following [{followedUsernames.length}]
         </h1>
-        <p className="text-zinc-500 dark:text-zinc-400 font-switzer font-medium text-xs leading-relaxed mt-2.5 max-w-xl">
-          Tracking the latest quantization manifests, low-latency engine configurations, and verified hardware configurations uploaded by developers you follow.
-        </p>
       </div>
 
       {loadingFeed ? (

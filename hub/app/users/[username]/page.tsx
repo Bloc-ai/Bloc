@@ -105,7 +105,7 @@ export default function UserProfilePage() {
               github: data.username,
               twitter: data.twitter || "",
               linkedin: data.linkedin || "",
-              avatarUrl: data.avatar_url || "",
+              avatarUrl: `https://github.com/${data.username}.png`,
               role: data.role || "Contributor",
               followersCount: followersCountRes.count || 0,
               followingCount: followingCountRes.count || 0,
@@ -141,7 +141,7 @@ export default function UserProfilePage() {
     github: rawUsername,
     twitter: "",
     linkedin: "",
-    avatarUrl: "",
+    avatarUrl: `https://github.com/${usernameKey}.png`,
     role: "Contributor",
     followersCount: 0,
     followingCount: 0
@@ -316,7 +316,6 @@ export default function UserProfilePage() {
     github: profile.github,
     twitter: profile.twitter || "",
     linkedin: profile.linkedin || "",
-    avatarUrl: profile.avatarUrl || ""
   });
 
   // Keep form in sync when profile updates or is loaded
@@ -328,7 +327,6 @@ export default function UserProfilePage() {
       github: profile.github,
       twitter: profile.twitter || "",
       linkedin: profile.linkedin || "",
-      avatarUrl: profile.avatarUrl || ""
     });
   }, [usernameKey, profiles]);
 
@@ -559,38 +557,6 @@ export default function UserProfilePage() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // C7 Fix: Validate avatar URL — only allow https:// URLs from known safe origins
-    if (editForm.avatarUrl) {
-      try {
-        const parsed = new URL(editForm.avatarUrl);
-        const allowedProtocols = ["https:"];
-        const allowedHosts = [
-          "images.unsplash.com",
-          "avatars.githubusercontent.com",
-          "github.com",
-          "pbs.twimg.com",
-          "media.licdn.com",
-          "lh3.googleusercontent.com",
-        ];
-        const isAllowedProtocol = allowedProtocols.includes(parsed.protocol);
-        const isAllowedHost = allowedHosts.some(
-          (host) => parsed.hostname === host || parsed.hostname.endsWith("." + host)
-        );
-        if (!isAllowedProtocol || !isAllowedHost) {
-          toast.error("Invalid avatar URL", {
-            description:
-              "Avatar must be an https:// URL from a trusted image host (Unsplash, GitHub, Twitter).",
-          });
-          return;
-        }
-      } catch {
-        toast.error("Invalid avatar URL", {
-          description: "Please enter a valid https:// URL.",
-        });
-        return;
-      }
-    }
-
     if (supabase && user) {
       try {
         const { error } = await supabase
@@ -601,7 +567,6 @@ export default function UserProfilePage() {
             location: editForm.location,
             twitter: editForm.twitter,
             linkedin: editForm.linkedin,
-            avatar_url: editForm.avatarUrl
           })
           .eq("auth_id", user.id);
 
@@ -627,7 +592,6 @@ export default function UserProfilePage() {
           location: editForm.location,
           twitter: editForm.twitter,
           linkedin: editForm.linkedin,
-          avatarUrl: editForm.avatarUrl
         }
       };
     });
@@ -949,17 +913,6 @@ export default function UserProfilePage() {
                   value={editForm.displayName}
                   onChange={(e) => setEditForm(prev => ({ ...prev, displayName: e.target.value }))}
                   className="w-full h-9 px-3 border border-zinc-300 dark:border-zinc-800 bg-transparent text-sm font-switzer outline-none focus:border-blue-500 rounded-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-mono text-[9px] uppercase font-bold text-zinc-500 mb-1.5">Avatar Image URL (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. https://images.unsplash.com/photo-..."
-                  value={editForm.avatarUrl}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, avatarUrl: e.target.value }))}
-                  className="w-full h-9 px-3 border border-zinc-300 dark:border-zinc-800 bg-transparent text-sm font-mono outline-none focus:border-blue-500 rounded-none"
                 />
               </div>
 
