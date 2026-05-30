@@ -241,7 +241,7 @@ export default function UserProfilePage() {
           .from("follows")
           .select(`
             follower_id,
-            profiles:follower_id (auth_id, username, display_name, avatar_url, role)
+            profiles:follower_id (auth_id, username, display_name, avatar_url)
           `)
           .eq("following_id", targetUser.auth_id);
           
@@ -250,7 +250,7 @@ export default function UserProfilePage() {
           .from("follows")
           .select(`
             following_id,
-            profiles:following_id (auth_id, username, display_name, avatar_url, role)
+            profiles:following_id (auth_id, username, display_name, avatar_url)
           `)
           .eq("follower_id", targetUser.auth_id);
 
