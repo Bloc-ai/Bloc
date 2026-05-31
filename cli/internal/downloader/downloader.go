@@ -793,7 +793,7 @@ func (m *Manager) DeleteCachedModel(friendlyName string) error {
 
 	if targetSHA != "" {
 		delete(m.index, targetSHA)
-		_ = m.writeIndexToDisk()
+		_ = m.writeIndexToDiskLocked()
 		
 		// Remove physical file
 		_ = os.Remove(filepath.Join(m.cacheDir, "models", targetSHA))
@@ -831,15 +831,13 @@ func (m *Manager) readIndexFromDisk() (CacheIndex, error) {
 	return index, nil
 }
 
-// writeIndexToDisk persists the in-memory index to disk.
-// P-09: Called once per download completion, not on every chunk.
-func (m *Manager) writeIndexToDisk() error {
-	m.indexMu.RLock()
+// writeIndexToDiskLocked persists the in-memory index to disk without managing locks.
+// The caller MUST already hold the m.indexMu write or read lock.
+func (m *Manager) writeIndexToDiskLocked() error {
 	snapshot := make(CacheIndex, len(m.index))
 	for k, v := range m.index {
 		snapshot[k] = v
 	}
-	m.indexMu.RUnlock()
 
 	data, err := json.MarshalIndent(snapshot, "", "  ")
 	if err != nil {
@@ -848,6 +846,14 @@ func (m *Manager) writeIndexToDisk() error {
 	// SEC-03: Use 0600 (owner-only) for the index file — it contains DownloadURL
 	// fields that may include signed CDN tokens for some HF blob downloads.
 	return os.WriteFile(filepath.Join(m.cacheDir, "index.json"), data, 0600)
+}
+
+// writeIndexToDisk persists the in-memory index to disk with thread-safety.
+// P-09: Called once per download completion, not on every chunk.
+func (m *Manager) writeIndexToDisk() error {
+	m.indexMu.RLock()
+	defer m.indexMu.RUnlock()
+	return m.writeIndexToDiskLocked()
 }
 
 func sanitizeFilename(name string) string {
