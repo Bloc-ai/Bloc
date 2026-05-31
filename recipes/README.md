@@ -18,7 +18,7 @@ All recipes are organized by the author's GitHub/Bloc username to prevent name c
         └── [recipe-name].yaml # Your custom recipe manifest
 ```
 
-*Example:* `recipes/arnav080/qwen3-30b-moe-8gb-cpu-offload.yaml`
+*Example:* `recipes/<your-username>/qwen3-30b-moe-8gb-cpu-offload.yaml`
 
 ---
 

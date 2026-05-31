@@ -68,17 +68,17 @@ const communityCards = [
   {
     title: "Local AI Recipes",
     desc: "Browse, customize, and share optimized llama.cpp recipes configured for different host hardware. Fully version-controlled and reproducible.",
-    link: "https://github.com/arnav080/Bloc/tree/main/recipes"
+    link: "https://github.com/Bloc-ai/Bloc/tree/main/recipes"
   },
   {
     title: "Next.js Web Hub",
     desc: "A collaborative registry and web interface to explore community-built setups, track model downloads, and manage remote endpoints.",
-    link: "https://github.com/arnav080/Bloc/tree/main/hub"
+    link: "https://github.com/Bloc-ai/Bloc/tree/main/hub"
   },
   {
     title: "Developer CLI Tool",
     desc: "A lightweight terminal client to deploy, benchmark, and serve local AI environments instantly with a single offline command.",
-    link: "https://github.com/arnav080/Bloc/tree/main/cli"
+    link: "https://github.com/Bloc-ai/Bloc/tree/main/cli"
   }
 ];
 
@@ -662,7 +662,7 @@ export default function Home() {
                     </Link>
                   </li>
                   <li>
-                    <Link href="https://github.com/arnav080/Bloc" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                    <Link href="https://github.com/Bloc-ai/Bloc" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
                       GitHub
                     </Link>
                   </li>
@@ -679,17 +679,17 @@ export default function Home() {
                 <h4 className="text-[11px] font-mono font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-[0.2em] mb-1">Repositories</h4>
                 <ul className="flex flex-col gap-2.5">
                   <li>
-                    <Link href="https://github.com/arnav080/Bloc/tree/main/cli" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                    <Link href="https://github.com/Bloc-ai/Bloc/tree/main/cli" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
                       Go CLI Client
                     </Link>
                   </li>
                   <li>
-                    <Link href="https://github.com/arnav080/Bloc/tree/main/hub" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                    <Link href="https://github.com/Bloc-ai/Bloc/tree/main/hub" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
                       Next.js Hub
                     </Link>
                   </li>
                   <li>
-                    <Link href="https://github.com/arnav080/Bloc/issues" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
+                    <Link href="https://github.com/Bloc-ai/Bloc/issues" className="text-[13px] font-mono text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors duration-300 border-b border-transparent hover:border-black/20 dark:hover:border-white/20 pb-0.5">
                       Feedback
                     </Link>
                   </li>

@@ -12,7 +12,7 @@ Bloc is distributed as a single lightweight, statically compiled binary with zer
 ### Method 1: Via Homebrew (Recommended)
 Add the official tap and install `bloc`:
 ```bash
-brew tap arnav080/bloc
+brew tap bloc-ai/bloc
 brew install bloc
 ```
 
@@ -21,14 +21,14 @@ Download and extract the binary matching your hardware, then move it into your s
 
 #### Apple Silicon (M-Series)
 ```bash
-curl -LO https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_darwin_arm64.tar.gz
+curl -LO https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_darwin_arm64.tar.gz
 tar -xzf bloc_darwin_arm64.tar.gz
 sudo mv bloc /usr/local/bin/
 ```
 
 #### Intel Core
 ```bash
-curl -LO https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_darwin_amd64.tar.gz
+curl -LO https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_darwin_amd64.tar.gz
 tar -xzf bloc_darwin_amd64.tar.gz
 sudo mv bloc /usr/local/bin/
 ```
@@ -39,18 +39,18 @@ sudo mv bloc /usr/local/bin/
 
 ### Method 1: Debian / Ubuntu (AMD64 `.deb`)
 ```bash
-wget https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_0.1.0_linux_amd64.deb
-sudo dpkg -i bloc_0.1.0_linux_amd64.deb
+wget https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_0.2.1_linux_amd64.deb
+sudo dpkg -i bloc_0.2.1_linux_amd64.deb
 ```
 
 ### Method 2: RedHat / Fedora (AMD64 `.rpm`)
 ```bash
-sudo dnf install https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_0.1.0_linux_amd64.rpm
+sudo dnf install https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_0.2.1_linux_amd64.rpm
 ```
 
 ### Method 3: Manual Tarball Installation (Any Distro)
 ```bash
-curl -LO https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_linux_amd64.tar.gz
+curl -LO https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_linux_amd64.tar.gz
 tar -xzf bloc_linux_amd64.tar.gz
 sudo mv bloc /usr/local/bin/
 ```
@@ -60,14 +60,14 @@ sudo mv bloc /usr/local/bin/
 ## 🪟 Windows
 
 ### Method 1: Windows Installer (Recommended)
-1. Download the **`bloc_windows_amd64.msi`** installer from the [Releases page](https://github.com/arnav080/Bloc/releases/tag/v0.1.0).
+1. Download the **`bloc_windows_amd64.msi`** installer from the [Releases page](https://github.com/Bloc-ai/Bloc/releases/tag/v0.2.1).
 2. Double-click the installer and follow the setup prompt.
 3. Open a **new** command prompt (`cmd`) or PowerShell terminal to refresh your environment variables, and run `bloc` globally.
 
 ### Method 2: Via PowerShell (Manual Zip Setup)
 Run the following commands to download, extract, and append the folder to your User PATH:
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_windows_amd64.zip" -OutFile "bloc.zip"
+Invoke-WebRequest -Uri "https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_windows_amd64.zip" -OutFile "bloc.zip"
 Expand-Archive "bloc.zip" -DestinationPath "$env:USERPROFILE\bin" -Force
 [Environment]::SetEnvironmentVariable("Path", $env:Path + ";$env:USERPROFILE\bin", "User")
 ```

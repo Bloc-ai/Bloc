@@ -14,39 +14,39 @@ export default function InstallationPage() {
     macos: [
       {
         label: "Via Homebrew (Recommended)",
-        cmd: "brew tap arnav080/bloc && brew install bloc"
+        cmd: "brew tap bloc-ai/bloc && brew install bloc"
       },
       {
         label: "Via Manual Tarball (Apple Silicon / M-Series)",
-        cmd: "curl -L https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_darwin_arm64.tar.gz | tar -xz && sudo mv bloc /usr/local/bin/"
+        cmd: "curl -L https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_darwin_arm64.tar.gz | tar -xz && sudo mv bloc /usr/local/bin/"
       },
       {
         label: "Via Manual Tarball (Intel Core)",
-        cmd: "curl -L https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_darwin_amd64.tar.gz | tar -xz && sudo mv bloc /usr/local/bin/"
+        cmd: "curl -L https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_darwin_amd64.tar.gz | tar -xz && sudo mv bloc /usr/local/bin/"
       }
     ],
     linux: [
       {
         label: "Debian / Ubuntu (AMD64 .deb)",
-        cmd: "wget https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_0.1.0_linux_amd64.deb && sudo dpkg -i bloc_0.1.0_linux_amd64.deb"
+        cmd: "wget https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_0.2.1_linux_amd64.deb && sudo dpkg -i bloc_0.2.1_linux_amd64.deb"
       },
       {
         label: "RedHat / Fedora / CentOS (AMD64 .rpm)",
-        cmd: "sudo dnf install https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_0.1.0_linux_amd64.rpm"
+        cmd: "sudo dnf install https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_0.2.1_linux_amd64.rpm"
       },
       {
         label: "Via Manual Tarball (AMD64)",
-        cmd: "curl -L https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_linux_amd64.tar.gz | tar -xz && sudo mv bloc /usr/local/bin/"
+        cmd: "curl -L https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_linux_amd64.tar.gz | tar -xz && sudo mv bloc /usr/local/bin/"
       }
     ],
     windows: [
       {
         label: "Windows Installer (Direct MSI Download)",
-        cmd: "https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_windows_amd64.msi"
+        cmd: "https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_windows_amd64.msi"
       },
       {
         label: "Via PowerShell (Manual Zip Setup)",
-        cmd: "Invoke-WebRequest -Uri \"https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_windows_amd64.zip\" -OutFile \"bloc.zip\"; Expand-Archive \"bloc.zip\" -DestinationPath \"$env:USERPROFILE\\bin\"; [Environment]::SetEnvironmentVariable(\"Path\", $env:Path + \";$env:USERPROFILE\\bin\", \"User\")"
+        cmd: "Invoke-WebRequest -Uri \"https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_windows_amd64.zip\" -OutFile \"bloc.zip\"; Expand-Archive \"bloc.zip\" -DestinationPath \"$env:USERPROFILE\\bin\"; [Environment]::SetEnvironmentVariable(\"Path\", $env:Path + \";$env:USERPROFILE\\bin\", \"User\")"
       }
     ]
   };

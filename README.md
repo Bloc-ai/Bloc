@@ -47,13 +47,13 @@ bloc/
 
 * **macOS (Homebrew):**
   ```bash
-  brew tap arnav080/bloc
+  brew tap bloc-ai/bloc
   brew install bloc
   ```
 * **Linux (Debian/Ubuntu):**
   ```bash
-  wget https://github.com/arnav080/Bloc/releases/download/v0.1.0/bloc_0.1.0_linux_amd64.deb
-  sudo dpkg -i bloc_0.1.0_linux_amd64.deb
+  wget https://github.com/Bloc-ai/Bloc/releases/download/v0.2.1/bloc_0.2.1_linux_amd64.deb
+  sudo dpkg -i bloc_0.2.1_linux_amd64.deb
   ```
 
 ### 2. Basic Commands
