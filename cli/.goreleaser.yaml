@@ -63,7 +63,7 @@ nfpms:
     homepage: https://bloc-hub.com
     maintainer: Bloc Team <team@bloc-hub.com>
     description: CLI to discover and run local AI models using community recipes
-    license: MIT
+    license: Apache-2.0
     formats:
       - deb
       - rpm

@@ -116,4 +116,4 @@ To publish a custom recipe optimization blueprint to the live registry:
 
 ## 📄 License
 
-This monorepo is licensed under the [MIT License](file:///Users/arnavgautam/Documents/bloc/bloc-product/LICENSE).
+This monorepo is licensed under the [Apache 2.0 License](file:///Users/arnavgautam/Documents/bloc/bloc-product/LICENSE).
