@@ -203,11 +203,30 @@ func ParseFile(path string) (*Recipe, error) {
 	return Parse(data)
 }
 
-// Parse unmarshals recipe YAML bytes.
+// ParseFileLocal reads and parses a local recipe YAML from disk, bypassing strict allowlist checks.
+func ParseFileLocal(path string) (*Recipe, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read recipe file: %w", err)
+	}
+	return ParseLocal(data)
+}
+
+// Parse unmarshals recipe YAML bytes under strict registry security rules.
 // F-14: Caller must wrap the input in io.LimitReader before calling Parse
 // to prevent memory DoS via huge YAML payloads. The 1 MB limit is enforced
 // in cmd/deploy.go's fetchRecipe function.
 func Parse(data []byte) (*Recipe, error) {
+	return parse(data, false)
+}
+
+// ParseLocal unmarshals recipe YAML bytes bypassing strict registry security allowlists.
+func ParseLocal(data []byte) (*Recipe, error) {
+	return parse(data, true)
+}
+
+// parse is the internal entrypoint shared by registry and local execution modes.
+func parse(data []byte, isLocal bool) (*Recipe, error) {
 	var r Recipe
 	if err := yaml.Unmarshal(data, &r); err != nil {
 		return nil, fmt.Errorf("invalid YAML: %w", err)
@@ -228,9 +247,11 @@ func Parse(data []byte) (*Recipe, error) {
 	if err := validateEngineConfig(&r); err != nil {
 		return nil, err
 	}
-	// F-03: Validate extra_args against the allowlist
-	if err := validateExtraArgs(r.EngineConfig.ExtraArgs); err != nil {
-		return nil, err
+	// F-03: Validate extra_args against the allowlist only if not local
+	if !isLocal {
+		if err := validateExtraArgs(r.EngineConfig.ExtraArgs); err != nil {
+			return nil, err
+		}
 	}
 	// F-15: Validate Docker image tag format at parse time.
 	// Prevents injection via crafted recipe: only [a-z0-9/_:.-] chars, max 200.

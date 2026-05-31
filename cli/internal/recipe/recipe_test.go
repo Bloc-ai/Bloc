@@ -542,3 +542,51 @@ func marshalRecipe(t *testing.T, r *Recipe) []byte {
 	}
 	return []byte(sb.String())
 }
+
+func TestParseLocal_BypassAllowlist(t *testing.T) {
+	yaml := []byte(`
+schema: bloc/v1
+metadata:
+  name: local-bypass-test
+model:
+  download_url: https://huggingface.co/org/model/resolve/main/model.gguf
+engine:
+  name: llama.cpp
+engine_config:
+  extra_args:
+    - "--temp"
+    - "0.8"
+    - "--mmproj"
+    - "clip-model.gguf"
+`)
+
+	// 1. Standard Parse should fail because --temp and --mmproj are blocked by the allowlist
+	_, err := Parse(yaml)
+	if err == nil {
+		t.Error("expected Parse to fail under strict registry rules for unapproved flags")
+	}
+
+	// 2. ParseLocal should succeed and bypass allowlist checks
+	r, err := ParseLocal(yaml)
+	if err != nil {
+		t.Errorf("expected ParseLocal to succeed by bypassing strict allowlist checks, got: %v", err)
+	}
+
+	if r.Metadata.Name != "local-bypass-test" {
+		t.Errorf("expected name 'local-bypass-test', got '%s'", r.Metadata.Name)
+	}
+
+	foundTemp := false
+	foundMMProj := false
+	for _, arg := range r.EngineConfig.ExtraArgs {
+		if arg == "--temp" {
+			foundTemp = true
+		}
+		if arg == "--mmproj" {
+			foundMMProj = true
+		}
+	}
+	if !foundTemp || !foundMMProj {
+		t.Error("expected extra_args to successfully preserve all bypassed flags")
+	}
+}

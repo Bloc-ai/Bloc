@@ -92,21 +92,21 @@ func init() {
 	deployCmd.Flags().StringVar(&deployRuntime, "runtime", "", "Override recipe's declared runtime (native|docker)")
 }
 
+func isLocalRecipe(path string) bool {
+	if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
+		return true
+	}
+	if _, err := os.Stat(path); err == nil {
+		return true
+	}
+	return false
+}
+
 func runDeploy(cmd *cobra.Command, args []string) error {
 	recipeID := args[0]
-	parts := strings.SplitN(recipeID, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return fmt.Errorf("invalid recipe ID %q — expected format: author/recipe-name", recipeID)
-	}
-
-	// F-09: Validate both path segments against the allowlist regex before use.
-	author, name := parts[0], parts[1]
-	if !recipeIDRe.MatchString(author) {
-		return fmt.Errorf("invalid author name %q — only alphanumeric, dash, dot and underscore allowed", author)
-	}
-	if !recipeIDRe.MatchString(name) {
-		return fmt.Errorf("invalid recipe name %q — only alphanumeric, dash, dot and underscore allowed", name)
-	}
+	var r *recipe.Recipe
+	var err error
+	isLocal := isLocalRecipe(recipeID)
 
 	// Fix #8: stepN is now a local variable scoped to this invocation.
 	// The old package-level var broke if runDeploy was called twice in a process.
@@ -116,13 +116,37 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		fmt.Printf("\n\033[1m[%d] %s\033[0m\n", stepN, label)
 	}
 
-	// ── Step 1: Fetch recipe ───────────────────────────────────────────────────
-	printStep("Fetching recipe")
-	r, err := fetchRecipe(author, name)
-	if err != nil {
-		return fmt.Errorf("cannot fetch recipe: %w", err)
+	if isLocal {
+		// ── Step 1: Parse local recipe ─────────────────────────────────────────────
+		printStep("Loading local recipe")
+		r, err = recipe.ParseFileLocal(recipeID)
+		if err != nil {
+			return fmt.Errorf("cannot parse local recipe: %w", err)
+		}
+		fmt.Printf("  \033[32m✓\033[0m  Local file loaded: %s (%s)\n", recipeID, r.Metadata.Name)
+	} else {
+		parts := strings.SplitN(recipeID, "/", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return fmt.Errorf("invalid recipe ID %q — expected author/recipe-name or local path (.yaml)", recipeID)
+		}
+
+		// F-09: Validate both path segments against the allowlist regex before use.
+		author, name := parts[0], parts[1]
+		if !recipeIDRe.MatchString(author) {
+			return fmt.Errorf("invalid author name %q — only alphanumeric, dash, dot and underscore allowed", author)
+		}
+		if !recipeIDRe.MatchString(name) {
+			return fmt.Errorf("invalid recipe name %q — only alphanumeric, dash, dot and underscore allowed", name)
+		}
+
+		// ── Step 1: Fetch recipe ───────────────────────────────────────────────────
+		printStep("Fetching recipe")
+		r, err = fetchRecipe(author, name)
+		if err != nil {
+			return fmt.Errorf("cannot fetch recipe: %w", err)
+		}
+		fmt.Printf("  \033[32m✓\033[0m  %s — %s\n", r.Metadata.Name, shortDesc(r.Metadata.Description, 72))
 	}
-	fmt.Printf("  \033[32m✓\033[0m  %s — %s\n", r.Metadata.Name, shortDesc(r.Metadata.Description, 72))
 
 	// ── Step 2: Resolve runtime ────────────────────────────────────────────────
 	printStep("Resolving runtime")
@@ -366,7 +390,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 
 
 	// Telemetry consent (first run only)
-	if !deployNoTelemetry {
+	if !deployNoTelemetry && !isLocal {
 		telemetry.MaybePromptConsent()
 	}
 
@@ -389,7 +413,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	}
 
 	// ── Step 9: Shutdown + telemetry ──────────────────────────────────────────
-	if !deployNoTelemetry && stats != nil {
+	if !deployNoTelemetry && !isLocal && stats != nil {
 		t, _ := config.LoadTelemetry()
 		if t != nil && t.Enabled {
 			telemetry.Send(recipeID, stats)
