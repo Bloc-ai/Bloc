@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const releasesAPI = "https://api.github.com/repos/bloc-org/bloc/releases/latest"
+const releasesAPI = "https://api.github.com/repos/Bloc-ai/Bloc/releases/latest"
 
 var updateCmd = &cobra.Command{
 	Use:   "update",
@@ -40,7 +40,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 
 	if resp.StatusCode == http.StatusNotFound {
 		fmt.Println("\n  No releases published yet.")
-		fmt.Println("  Watch for releases at: https://github.com/bloc-org/bloc/releases")
+		fmt.Println("  Watch for releases at: https://github.com/Bloc-ai/Bloc/releases")
 		return nil
 	}
 
@@ -53,10 +53,10 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Platform: %s/%s\n\n", goos, goarch)
 	fmt.Println("Self-update is being finalized.")
 	fmt.Println("Download the latest release from:")
-	fmt.Println("  https://github.com/bloc-org/bloc/releases/latest")
+	fmt.Println("  https://github.com/Bloc-ai/Bloc/releases/latest")
 	fmt.Println()
 	fmt.Println("Or update via Homebrew:")
-	fmt.Println("  brew upgrade bloc-org/bloc/bloc")
+	fmt.Println("  brew upgrade bloc-ai/bloc/bloc")
 	return nil
 }
 
