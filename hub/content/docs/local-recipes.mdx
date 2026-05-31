@@ -1,0 +1,98 @@
+---
+title: Local Recipes
+description: Learn how to configure, prototype, and run local AI YAML recipes directly from disk with complete flag freedom.
+---
+
+By default, Bloc is a GitOps orchestrator that pulls optimized, community-vetted blueprints from the remote registry. However, for quick prototyping, local hardware fine-tuning, or private workflows, you can execute a custom YAML recipe directly from your local filesystem.
+
+Starting in **`v0.3.0`**, Bloc supports **Local Recipe Execution**, which gives developers the power to bypass standard registry restrictions, tweak parameters, and serve private setups instantly.
+
+---
+
+## 🚀 Running a Local Recipe
+
+To deploy a recipe stored on your local disk, pass the absolute or relative file path to the `bloc deploy` command:
+
+```bash
+bloc deploy ./my-custom-recipe.yaml
+```
+
+To view the generated server launch flags without actually booting the runtime or running system commands, append the `--dry-run` flag:
+
+```bash
+bloc deploy ./my-custom-recipe.yaml --dry-run
+```
+
+---
+
+## ⚡ The Allowlist Bypass (Power User Mode)
+
+To protect host machines running community-submitted code, registry recipes undergo strict schema checking and are validated against a restricted flag allowlist (`allowedExtraArgs`).
+
+When you deploy a local YAML file, **Bloc knows that you explicitly trust your own configuration**. Consequently, the CLI automatically **bypasses the allowlist validation**, allowing you to supply any advanced parameter directly to the underlying engine.
+
+This is extremely powerful for configuring:
+* **Custom Samplers**: Adjusting temperature, penalization ranges, and top-p (e.g. `--temp`, `--min-p`, `--repeat-penalty`).
+* **Visual Models (Multimodal)**: Passing visual CLIP projection parameters (e.g. `--mmproj`) alongside standard GGUF weights.
+* **Custom Tokenizers**: Overriding chat formatting arguments dynamically (e.g. `--chat-template-kwargs`).
+
+---
+
+## 📋 Comprehensive Local Recipe Template
+
+Below is a complete, annotated example of a local recipe showing how to configure private environments, custom engine flags, and bypassed parameters:
+
+```yaml
+schema: "bloc/v1"
+
+metadata:
+  name: "private-reasoning-tweak"
+  description: "A private local-first config using custom samplers and reasoning preservation."
+
+model:
+  # Instructs Bloc to download and cache the GGUF model weights
+  download_url: "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf"
+  file: "qwen2.5-0.5b-instruct-q4_k_m.gguf"
+  size_gb: 0.39
+
+engine:
+  name: "llama.cpp"
+
+hardware:
+  min_vram: "4GB"
+  target_platform: "metal"
+
+engine_config:
+  ctx_size: 4096
+  port: 8085
+  flash_attn: true
+  
+  # pass any advanced, unapproved samplers or visual flags here
+  extra_args:
+    - "--temp"
+    - "0.7"
+    - "--min-p"
+    - "0.05"
+    - "--repeat-penalty"
+    - "1.15"
+    - "--mmproj"
+    - "clip-vision-f16.gguf" # multimodal visual projector
+
+pre_run:
+  # Set environment variables for the process
+  env:
+    __GLX_VENDOR_LIBRARY_NAME: "nvidia"
+    __NV_PRIME_RENDER_OFFLOAD: "1"
+    DRI_PRIME: "1"
+  commands:
+    - "echo 'Setting up local workspace...'"
+```
+
+---
+
+## 🔒 Telemetry & Privacy
+
+Bloc respects your privacy. When executing a local recipe file:
+* **No Telemetry Prompts**: You will never be asked to consent to telemetry benchmark sharing for local files.
+* **Zero Stat Submissions**: The CLI automatically skips sending benchmark metrics (`tokens/sec`, hardware parameters) to the remote database.
+* **Offline Execution**: If you have the model already cached under `~/.cache/bloc/models/`, the recipe will boot up instantly with **zero external network requests**.

@@ -7,6 +7,7 @@
     "---Using Bloc---",
     "commands",
     "recipes",
+    "local-recipes",
     "publishing",
     "engines-and-runtimes",
     "troubleshooting",
