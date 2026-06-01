@@ -9,6 +9,12 @@ import { Cpu, Box, Code2, Layers, Activity, FileCode2, Shield } from "lucide-rea
 import TerminalDemo from "@/components/landing/TerminalDemo";
 import BuildShareRunSection from "@/components/landing/BuildShareRunSection";
 import CommunityCuboids from "@/components/landing/CommunityCuboids";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Bloc Hub - Dynamic Local AI Model Registry & Deployments",
+  description: "Discover, configure, and boot up optimized open-source LLMs offline in seconds. Explore reproducible model setup recipes shared by the developer community.",
+};
 
 function HighlightText({ children }: { children: React.ReactNode }) {
   return (

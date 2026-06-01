@@ -237,8 +237,36 @@ export default async function RecipeDetailPage(props: PageProps) {
     ? await getRecipeTelemetry(recipe.dbId)
     : { total_runs: 0, success_rate: 0, benchmarks: [] };
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": `${recipe.creator}/${recipe.name}`,
+    "description": recipe.description,
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": recipe.hardware.targetPlatform === "metal" 
+      ? "macOS" 
+      : recipe.hardware.targetPlatform === "cpu"
+      ? "macOS, Windows, Linux"
+      : "Windows, Linux",
+    "requirements": `${recipe.hardware.minVram} VRAM required. Base model: ${recipe.baseModel}. Quantization: ${recipe.quantization}.`,
+    "author": {
+      "@type": "Person",
+      "name": recipe.creator,
+      "url": `https://bloc-theta.vercel.app/users/${recipe.creator}`
+    },
+    "interactionStatistic": {
+      "@type": "InteractionCounter",
+      "interactionType": "https://schema.org/DownloadAction",
+      "userInteractionCount": telemetry.total_runs || recipe.telemetry.runs
+    }
+  };
+
   return (
     <div className="max-w-4xl w-full mx-auto px-6 py-16">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       
       {/* Back to Registry */}
       <Link href="/registry" className="inline-flex items-center gap-1.5 font-mono text-[10px] text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors mb-12">
