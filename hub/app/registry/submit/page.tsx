@@ -528,22 +528,18 @@ export default function RecipeSubmitPage() {
             </select>
           </div>
 
-          {/* Memory VRAM Dropdown */}
+          {/* Memory VRAM Input Textbox */}
           <div className="flex flex-col gap-1.5">
             <label className="font-mono text-[9px] text-zinc-450 dark:text-zinc-500 font-bold uppercase tracking-wider">
               Memory Constraint (VRAM)
             </label>
-            <select
-              value={parsed.minVram || "8GB"}
+            <input
+              type="text"
+              value={parsed.minVram || ""}
               onChange={(e) => handleFieldChange("min_vram", e.target.value)}
-              className="bg-[#1e1e1e] border border-zinc-300 dark:border-zinc-800 focus:border-blue-500 outline-none font-mono text-xs text-white px-3 h-10 w-full rounded-none cursor-pointer"
-            >
-              <option value="4GB">4GB VRAM</option>
-              <option value="8GB">8GB VRAM</option>
-              <option value="12GB">12GB VRAM</option>
-              <option value="24GB">24GB VRAM</option>
-              <option value="Unified Mac">Unified Mac</option>
-            </select>
+              className="bg-[#1e1e1e] border border-zinc-300 dark:border-zinc-800 focus:border-blue-500 outline-none font-mono text-xs text-white px-3 h-10 w-full rounded-none"
+              placeholder="e.g. 16GB"
+            />
           </div>
         </div>
 
