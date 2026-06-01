@@ -1,6 +1,8 @@
 package recipe
 
 import (
+	_ "embed"
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -144,49 +146,20 @@ type EngineConfig struct {
 	ExtraArgs []string `yaml:"extra_args"`
 }
 
-// allowedExtraArgs is the set of llama-server flags permitted in extra_args.
-// F-03: This prevents recipe authors (or a compromised Hub) from injecting
-// dangerous flags like --host 0.0.0.0, --api-key "", or future plugin flags.
-// Add new flags here as llama.cpp adds them and they are reviewed safe.
-var allowedExtraArgs = map[string]struct{}{
-	// Speculative / MTP decoding (new llama.cpp features)
-	"--draft-mtp":         {},
-	"--draft-mtp-steps":   {},
-	"--draft-max":         {},
-	"--draft-min":         {},
-	"--draft-p-min":       {},
-	"--spec-type":         {},
-	// KV cache quantisation variants
-	"-ctk":               {},
-	"-ctv":               {},
-	"--cache-type-k":     {},
-	"--cache-type-v":     {},
-	// Rope scaling
-	"--rope-scale":        {},
-	"--rope-freq-base":    {},
-	"--rope-freq-scale":   {},
-	"--yarn-orig-ctx":     {},
-	// Grammars / sampling
-	"--grammar":           {},
-	"--grammar-file":      {},
-	"--json-schema":       {},
-	// Embedding
-	"--embedding":         {},
-	"--reranking":         {},
-	// Logging verbosity
-	"--log-disable":       {},
-	"--verbose":           {},
-	"-v":                  {},
-	// Flash attention variant
-	"--flash-attn":        {},
-	"-fa":                 {},
-	// Jinja templating
-	"--jinja":             {},
-	// Batching
-	"-b":                  {},
-	"-ub":                 {},
-	"--batch-size":        {},
-	"--ubatch-size":       {},
+//go:embed banned_flags.json
+var bannedFlagsJSON []byte
+
+var bannedExtraArgs map[string]struct{}
+
+func init() {
+	var bannedList []string
+	if err := json.Unmarshal(bannedFlagsJSON, &bannedList); err != nil {
+		panic(fmt.Sprintf("failed to parse embedded banned_flags.json: %v", err))
+	}
+	bannedExtraArgs = make(map[string]struct{})
+	for _, flag := range bannedList {
+		bannedExtraArgs[flag] = struct{}{}
+	}
 }
 
 type PreRun struct {
@@ -333,18 +306,22 @@ func validateEngineConfig(r *Recipe) error {
 	return nil
 }
 
-// validateExtraArgs rejects any flag not in the allowedExtraArgs set.
-// F-03: Prevents a compromised Hub recipe from injecting dangerous llama-server flags.
+// validateExtraArgs rejects any flag present in the bannedExtraArgs set.
+// F-03: Prevents a compromised Hub recipe from injecting dangerous flags.
 func validateExtraArgs(args []string) error {
 	for _, arg := range args {
 		// Only check tokens that look like flags (start with -)
 		if !strings.HasPrefix(arg, "-") {
 			continue // value tokens like "4" or "q8_0" are fine
 		}
-		if _, ok := allowedExtraArgs[arg]; !ok {
+		
+		// Strip value assignment (e.g., --log-file=/etc/shadow -> --log-file)
+		flagName := strings.SplitN(arg, "=", 2)[0]
+		
+		if _, ok := bannedExtraArgs[flagName]; ok {
 			return fmt.Errorf(
-				"extra_args contains disallowed flag %q — contact the recipe author or open an issue at https://github.com/bloc-org/bloc",
-				arg,
+				"extra_args contains banned flag %q — this flag is blocked for security reasons",
+				flagName,
 			)
 		}
 	}

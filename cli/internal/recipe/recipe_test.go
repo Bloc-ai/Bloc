@@ -554,19 +554,19 @@ engine:
   name: llama.cpp
 engine_config:
   extra_args:
-    - "--temp"
-    - "0.8"
-    - "--mmproj"
-    - "clip-model.gguf"
+    - "--log-file"
+    - "/etc/shadow"
+    - "--api-key"
+    - "secret"
 `)
 
-	// 1. Standard Parse should fail because --temp and --mmproj are blocked by the allowlist
+	// 1. Standard Parse should fail because --log-file and --api-key are strictly banned
 	_, err := Parse(yaml)
 	if err == nil {
-		t.Error("expected Parse to fail under strict registry rules for unapproved flags")
+		t.Error("expected Parse to fail under strict registry rules for banned flags")
 	}
 
-	// 2. ParseLocal should succeed and bypass allowlist checks
+	// 2. ParseLocal should succeed and bypass deny-list checks
 	r, err := ParseLocal(yaml)
 	if err != nil {
 		t.Errorf("expected ParseLocal to succeed by bypassing strict allowlist checks, got: %v", err)
@@ -576,17 +576,17 @@ engine_config:
 		t.Errorf("expected name 'local-bypass-test', got '%s'", r.Metadata.Name)
 	}
 
-	foundTemp := false
-	foundMMProj := false
+	foundLogFile := false
+	foundApiKey := false
 	for _, arg := range r.EngineConfig.ExtraArgs {
-		if arg == "--temp" {
-			foundTemp = true
+		if arg == "--log-file" {
+			foundLogFile = true
 		}
-		if arg == "--mmproj" {
-			foundMMProj = true
+		if arg == "--api-key" {
+			foundApiKey = true
 		}
 	}
-	if !foundTemp || !foundMMProj {
+	if !foundLogFile || !foundApiKey {
 		t.Error("expected extra_args to successfully preserve all bypassed flags")
 	}
 }
