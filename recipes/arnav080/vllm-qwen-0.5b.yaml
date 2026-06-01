@@ -1,0 +1,26 @@
+schema: "bloc/v1"
+
+metadata:
+  name: "vllm-qwen-0.5b"
+  description: "Test vLLM engine support with a lightweight Qwen 0.5B model"
+  tags: ["cpu", "metal", "reasoning"]
+
+model:
+  source: "huggingface:Qwen/Qwen2.5-0.5B-Instruct"
+  hf_repo: "Qwen/Qwen2.5-0.5B-Instruct"
+  size_gb: 0.94
+  parameters: "0.5B"
+  architecture: "Dense"
+
+engine:
+  name: "vllm"
+  runtime: "native"
+  version: "0.9.1"
+
+hardware:
+  min_vram: "4GB"
+  target_platform: "cpu"
+
+engine_config:
+  host: "127.0.0.1"
+  port: 8080

@@ -1,0 +1,52 @@
+schema: "bloc/v1"
+
+metadata:
+  name: "step-3-7-flash-nvfp4"
+  description: "Step 3.7 Flash MoE (198B) quantized to 4-bit (NVFP4) optimized for dual RTX 6000 GPUs"
+  tags:
+    - "cuda"
+    - "moe"
+    - "nvfp4"
+    - "dual-gpu"
+  author_notes: "Configured exactly according to the vLLM benchmark setup on a workstation with 2x RTX PRO 6000 GPUs. It activates ~11B parameters per token from its 196B backbone + 1.8B vision encoder. Uses the FP4 modelopt quantization format on the experts to fit inside 192GB aggregate VRAM."
+
+model:
+  source: "huggingface:stepfun-ai/Step-3.7-Flash-NVFP4"
+  hf_repo: "stepfun-ai/Step-3.7-Flash-NVFP4"
+  size_gb: 110.0
+  parameters: "198B"
+  architecture: "MoE"
+
+engine:
+  name: "vllm"
+  runtime: "docker"
+  image: "vllm/vllm-openai:stepfun37"
+
+hardware:
+  min_vram: "192GB"
+  target_platform: "cuda"
+  gpu_count: 2
+
+engine_config:
+  host: "127.0.0.1"
+  port: 8001
+  tensor_parallel_size: 2
+  enable_expert_parallel: true
+  gpu_memory_utilization: 0.92
+  max_model_len: 262144
+  kv_cache_dtype: "fp8"
+  quantization: "modelopt"
+  trust_remote_code: true
+  extra_args:
+    - "--disable-custom-all-reduce"
+    - "--async-scheduling"
+    - "--served-model-name"
+    - "step3p7"
+
+pre_run:
+  env:
+    NCCL_P2P_DISABLE: "1"
+    NCCL_IB_DISABLE: "1"
+    NCCL_SOCKET_IFNAME: "lo"
+    GLOO_SOCKET_IFNAME: "lo"
+    CUDA_DEVICE_ORDER: "PCI_BUS_ID"

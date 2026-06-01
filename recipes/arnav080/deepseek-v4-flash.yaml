@@ -1,0 +1,56 @@
+schema: "bloc/v1"
+
+metadata:
+  name: "deepseek-v4-flash"
+  description: "DeepSeek V4-Flash MoE (284B) production profile tuned for 2x RTX 6000 GPUs"
+  tags:
+    - "cuda"
+    - "moe"
+    - "fp8"
+    - "dual-gpu"
+    - "production"
+  author_notes: "Tuned production profile (agent-256k) for DeepSeek V4-Flash (284B parameters total, 13B active). Uses a custom SM120-optimized vLLM build rather than mainline stepfun37. Includes custom MLA (Multi-head Latent Attention) optimizations and deepseek_v4 tokenizers/parsers."
+
+model:
+  source: "huggingface:deepseek-ai/DeepSeek-V4-Flash"
+  hf_repo: "deepseek-ai/DeepSeek-V4-Flash"
+  size_gb: 284.0
+  parameters: "284B"
+  architecture: "MoE"
+
+engine:
+  name: "vllm"
+  runtime: "docker"
+  image: "vllm-dsv4-sm120:latest"
+
+hardware:
+  min_vram: "192GB"
+  target_platform: "cuda"
+  gpu_count: 2
+
+engine_config:
+  host: "127.0.0.1"
+  port: 8000
+  tensor_parallel_size: 2
+  enable_expert_parallel: true
+  gpu_memory_utilization: 0.95
+  max_model_len: 262144
+  kv_cache_dtype: "fp8"
+  tokenizer_mode: "deepseek_v4"
+  tool_call_parser: "deepseek_v4"
+  reasoning_parser: "deepseek_v4"
+
+  extra_args:
+    - "--block-size"
+    - "256"
+    - "--enable-auto-tool-choice"
+    - "--served-model-name"
+    - "deepseek-v4-flash"
+
+pre_run:
+  env:
+    NCCL_P2P_DISABLE: "0"
+    NCCL_MIN_NCHANNELS: "1"
+    NCCL_MAX_NCHANNELS: "1"
+    VLLM_TRITON_MLA_SPARSE_ATTN: "1"
+    VLLM_TRITON_MLA_SPARSE_BLOCK_SIZE: "16"

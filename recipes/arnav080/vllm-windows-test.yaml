@@ -1,0 +1,41 @@
+schema: "bloc/v1"
+
+metadata:
+  name: "vllm-windows-test"
+  description: "Super light vLLM recipe to test Windows/WSL2 and CUDA GPU installation"
+  tags:
+    - "cuda"
+    - "lightweight"
+    - "test"
+  author_notes: |
+    This is a lightweight recipe designed to test vLLM installation on a Windows gaming laptop.
+    Because vLLM does not run natively on Windows, you must run this inside WSL2 (Windows Subsystem for Linux)
+    with the NVIDIA Container Toolkit or a local Python venv in WSL2.
+    It uses the Qwen 2.5 0.5B Instruct model (~0.94GB), which downloads quickly and uses minimal VRAM.
+
+model:
+  source: "huggingface:Qwen/Qwen2.5-0.5B-Instruct"
+  hf_repo: "Qwen/Qwen2.5-0.5B-Instruct"
+  size_gb: 0.94
+  parameters: "0.5B"
+  architecture: "Dense"
+
+engine:
+  name: "vllm"
+  runtime: "native"       # Can be 'native' (installed in WSL2 python venv) or 'docker' (running inside WSL2 docker)
+  version: "0.9.1"
+  image: "vllm/vllm-openai:v0.9.1" # Used only if runtime is 'docker'
+
+hardware:
+  min_vram: "4GB"          # Fits easily on laptop gaming GPUs (RTX 3050, 3060, 4050, 4060, etc.)
+  target_platform: "cuda"  # Targets NVIDIA CUDA
+  gpu_count: 1
+
+engine_config:
+  host: "127.0.0.1"
+  port: 8080
+  
+  # vLLM-specific configuration parameters
+  tensor_parallel_size: 1
+  gpu_memory_utilization: 0.85
+  max_model_len: 2048
