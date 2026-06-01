@@ -226,10 +226,24 @@ export default function RecipeSubmitPage() {
         let inModel = false;
         let inEngine = false;   // new bloc/v1 engine: section
         let inHardware = false;
+        let blockIndent = -1;
 
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
           const trimmed = line.trim();
+          const indent = line.search(/\S/);
+
+          // Handle multiline/block string values in YAML (e.g., description: > or author_notes: |)
+          if (blockIndent !== -1) {
+            if (trimmed === "") {
+              continue;
+            }
+            if (indent > blockIndent) {
+              continue;
+            } else {
+              blockIndent = -1;
+            }
+          }
 
           // Mismatched or non-YAML key lines check
           if (trimmed && !trimmed.startsWith("#")) {
@@ -239,6 +253,11 @@ export default function RecipeSubmitPage() {
           }
 
           if (!trimmed || trimmed.startsWith("#")) continue;
+
+          // Detect start of a block scalar (literal '|' or folded '>')
+          if (/:\s*[-+0-9]*\s*[>|]/.test(trimmed)) {
+            blockIndent = indent;
+          }
 
           if (trimmed.startsWith("metadata:")) {
             inMetadata = true; inModel = false; inEngine = false; inHardware = false;
