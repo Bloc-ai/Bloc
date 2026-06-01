@@ -396,7 +396,7 @@ export default async function RecipeDetailPage(props: PageProps) {
       </div>
 
       {/* YAML Manifest Viewer */}
-      <YamlCodeViewer yaml={yaml} filename={`${recipe.name}.yaml`} />
+      <YamlCodeViewer yaml={yaml} filename={`${recipe.name}.yaml`} creator={recipe.creator} isMock={isMock} />
 
     </div>
   );
