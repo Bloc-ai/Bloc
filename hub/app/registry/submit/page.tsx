@@ -320,6 +320,33 @@ export default function RecipeSubmitPage() {
   const handleFieldChange = (field: "name" | "min_vram" | "target_platform", val: string) => {
     const updatedYaml = updateYamlField(yamlText, field, val);
     setYamlText(updatedYaml);
+
+    // Update parsed state immediately so the input reflects it instantly!
+    setParsed(prev => {
+      const next = { ...prev };
+      if (field === "name") next.name = val;
+      if (field === "min_vram") next.minVram = val;
+      if (field === "target_platform") next.targetPlatform = val;
+      return next;
+    });
+  };
+
+  const getVramDisplayValue = (val: string) => {
+    if (!val) return "";
+    // If it ends with GB (case insensitive), return the part before GB
+    if (val.toLowerCase().endsWith("gb")) {
+      return val.substring(0, val.length - 2).trim();
+    }
+    return val;
+  };
+
+  const handleVramChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputVal = e.target.value;
+    let yamlVal = inputVal;
+    if (inputVal && !isNaN(Number(inputVal))) {
+      yamlVal = `${inputVal}GB`;
+    }
+    handleFieldChange("min_vram", yamlVal);
   };
 
 
@@ -533,13 +560,18 @@ export default function RecipeSubmitPage() {
             <label className="font-mono text-[9px] text-zinc-450 dark:text-zinc-500 font-bold uppercase tracking-wider">
               Memory Constraint (VRAM)
             </label>
-            <input
-              type="text"
-              value={parsed.minVram || ""}
-              onChange={(e) => handleFieldChange("min_vram", e.target.value)}
-              className="bg-[#1e1e1e] border border-zinc-300 dark:border-zinc-800 focus:border-blue-500 outline-none font-mono text-xs text-white px-3 h-10 w-full rounded-none"
-              placeholder="e.g. 16GB"
-            />
+            <div className="relative flex items-center bg-[#1e1e1e] border border-zinc-300 dark:border-zinc-800 focus-within:border-blue-500 w-full h-10">
+              <input
+                type="text"
+                value={getVramDisplayValue(parsed.minVram || "")}
+                onChange={handleVramChange}
+                className="bg-transparent outline-none font-mono text-xs text-white pl-3 pr-10 h-full w-full rounded-none"
+                placeholder="e.g. 16"
+              />
+              <span className="absolute right-3 font-mono text-xs text-zinc-500 dark:text-zinc-400 select-none pointer-events-none">
+                GB
+              </span>
+            </div>
           </div>
         </div>
 
