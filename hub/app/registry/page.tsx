@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { registryRecipes, Recipe } from "@/lib/registry-data";
 import { getSupabaseAnon } from "@/lib/supabase-server";
 import RegistryClient from "./RegistryClient";
@@ -62,5 +63,9 @@ export default async function RegistryPage() {
     ...dbRecipes.filter(dbR => !registryRecipes.some(mockR => mockR.id === dbR.id))
   ];
 
-  return <RegistryClient initialRecipes={allRecipes} />;
+  return (
+    <Suspense fallback={<div className="p-12 text-center text-sm font-mono text-zinc-500">Loading Registry...</div>}>
+      <RegistryClient initialRecipes={allRecipes} />
+    </Suspense>
+  );
 }

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import ShortcutButton from "@/components/ShortcutButton";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Download, Star } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -48,6 +48,8 @@ interface RegistryClientProps {
 
 export default function RegistryClient({ initialRecipes }: RegistryClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { user } = useAuth();
 
   // Starred Recipes State
@@ -134,8 +136,8 @@ export default function RegistryClient({ initialRecipes }: RegistryClientProps) 
   };
 
   // Filter States
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(searchParams?.get("q") || "");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchParams?.get("q") || "");
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -143,6 +145,19 @@ export default function RegistryClient({ initialRecipes }: RegistryClientProps) 
     }, 200);
     return () => clearTimeout(handler);
   }, [searchQuery]);
+
+  useEffect(() => {
+    const currentQ = searchParams?.get("q") || "";
+    if (debouncedSearchQuery !== currentQ) {
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      if (debouncedSearchQuery) {
+        params.set("q", debouncedSearchQuery);
+      } else {
+        params.delete("q");
+      }
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  }, [debouncedSearchQuery, pathname, router, searchParams]);
 
   const [selectedVram, setSelectedVram] = useState<string[]>([]);
   const [selectedPlatform, setSelectedPlatform] = useState<string[]>([]);
