@@ -1,5 +1,8 @@
 // @ts-nocheck
-import { default as __fd_glob_11 } from "../content/docs/meta.json?collection=meta"
+import { default as __fd_glob_14 } from "../content/docs/meta.json?collection=meta"
+import * as __fd_glob_13 from "../content/docs/engines/vllm.mdx?collection=docs"
+import * as __fd_glob_12 from "../content/docs/engines/sglang.mdx?collection=docs"
+import * as __fd_glob_11 from "../content/docs/engines/llama-cpp.mdx?collection=docs"
 import * as __fd_glob_10 from "../content/docs/troubleshooting.mdx?collection=docs"
 import * as __fd_glob_9 from "../content/docs/recipes.mdx?collection=docs"
 import * as __fd_glob_8 from "../content/docs/quickstart.mdx?collection=docs"
@@ -21,6 +24,6 @@ const create = server<typeof Config, import("fumadocs-mdx/runtime/types").Intern
 
 export const blog = await create.doc("blog", "content/blog", {"rethinking-local-ai-engine.mdx": __fd_glob_0, });
 
-export const docs = await create.doc("docs", "content/docs", {"commands.mdx": __fd_glob_1, "engines-and-runtimes.mdx": __fd_glob_2, "how-bloc-works.mdx": __fd_glob_3, "index.mdx": __fd_glob_4, "installation.mdx": __fd_glob_5, "local-recipes.mdx": __fd_glob_6, "publishing.mdx": __fd_glob_7, "quickstart.mdx": __fd_glob_8, "recipes.mdx": __fd_glob_9, "troubleshooting.mdx": __fd_glob_10, });
+export const docs = await create.doc("docs", "content/docs", {"commands.mdx": __fd_glob_1, "engines-and-runtimes.mdx": __fd_glob_2, "how-bloc-works.mdx": __fd_glob_3, "index.mdx": __fd_glob_4, "installation.mdx": __fd_glob_5, "local-recipes.mdx": __fd_glob_6, "publishing.mdx": __fd_glob_7, "quickstart.mdx": __fd_glob_8, "recipes.mdx": __fd_glob_9, "troubleshooting.mdx": __fd_glob_10, "engines/llama-cpp.mdx": __fd_glob_11, "engines/sglang.mdx": __fd_glob_12, "engines/vllm.mdx": __fd_glob_13, });
 
-export const meta = await create.meta("meta", "content/docs", {"meta.json": __fd_glob_11, });
+export const meta = await create.meta("meta", "content/docs", {"meta.json": __fd_glob_14, });
