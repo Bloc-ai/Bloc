@@ -1,0 +1,70 @@
+---
+title: vLLM
+description: Configure and run models using the vLLM engine in Bloc.
+---
+
+# vLLM Engine
+
+[vLLM](https://github.com/vllm-project/vllm) is a high-throughput and memory-efficient LLM serving engine featuring PagedAttention. It is optimal for high-concurrency production deployments and large batched workloads.
+
+To use vLLM as your execution backend, set the `engine` field to `vllm` in your Bloc recipe.
+
+## vLLM Configuration Options
+
+When using the `vllm` engine, the following fields are available inside the `engine_config` block. These map directly to vLLM's internal `EngineArgs` and CLI flags.
+
+| Recipe Field | Description | Example / Typical Value |
+| :--- | :--- | :--- |
+| `tensor_parallel_size` | Number of GPUs to use for tensor parallelism (`--tensor-parallel-size`). | `1`, `2`, `4`, `8` |
+| `gpu_memory_utilization` | The fraction of GPU memory allocated for the KV cache. | `0.9` (Default), `0.85` |
+| `max_model_len` | Override the maximum context length of the model (`--max-model-len`). | `8192`, `32768` |
+| `dtype` | Data type for the model weights (`auto`, `half`, `bfloat16`, `float`). | `auto`, `bfloat16` |
+| `kv_cache_dtype` | Data type for the KV cache (`auto`, `fp8`). | `auto`, `fp8` |
+| `quantization` | Quantization method (e.g., `awq`, `gptq`, `fp8`). | `fp8` |
+| `enable_expert_parallel` | Enable expert parallelism for MoE models. | `true`, `false` |
+| `tokenizer_mode` | The tokenizer mode (`auto`, `slow`). | `auto` |
+| `tool_call_parser` | Parser for function calling outputs. | `hermes`, `llama3_json` |
+| `reasoning_parser` | Parser for reasoning model outputs (e.g., DeepSeek R1). | `deepseek_r1` |
+| `trust_remote_code` | Allow execution of remote code from HuggingFace. **Prompts for confirmation.** | `false` |
+| `speculative_model` | The HuggingFace ID of the draft model for speculative decoding. | `ibm-granite/granite-3.0-2b-instruct` |
+| `num_speculative_tokens` | The number of speculative tokens to generate per step. | `5` |
+
+## Advanced: Extra Arguments
+
+If vLLM introduces a new flag that Bloc does not yet have a native field for (or if you need to use an obscure optimization flag), you can use the `extra_args` field. 
+
+This acts as an "escape hatch" to pass arbitrary command-line arguments directly to the underlying engine. Bloc will validate these arguments against a security allowlist (to prevent malicious overrides like `--host` or `--model-path`) and then pass them straight through.
+
+```yaml
+engine_config:
+  extra_args:
+    - "--enforce-eager"
+    - "--disable-log-requests"
+```
+
+## Example Recipe
+
+Here is a complete example of a Bloc recipe that runs a model on vLLM using 2 GPUs and speculative decoding:
+
+```yaml
+version: "1.0"
+model:
+  repository: "arnav080/llama-3-8b-instruct"
+  architecture: "llama"
+engine: "vllm"
+engine_config:
+  tensor_parallel_size: 2
+  gpu_memory_utilization: 0.9
+  max_model_len: 8192
+  speculative_model: "arnav080/llama-3-1b-draft"
+  num_speculative_tokens: 5
+hardware:
+  min_vram: 24
+  recommended_gpus: 2
+```
+
+## Troubleshooting
+
+*   **OOM on Startup:** vLLM allocates KV cache proactively based on `gpu_memory_utilization`. If the container crashes upon startup, lower this to `0.8` or `0.85`.
+*   **Trust Remote Code Errors:** If a custom model requires executing custom Python code from its repo, vLLM will fail unless `trust_remote_code` is set to `true`. Bloc will prompt you for security confirmation before proceeding if this is enabled.
+

@@ -11,6 +11,10 @@
     "publishing",
     "engines-and-runtimes",
     "troubleshooting",
+    "---Engines---",
+    "engines/sglang",
+    "engines/vllm",
+    "engines/llama-cpp",
     "---Concepts---",
     "how-bloc-works"
   ]

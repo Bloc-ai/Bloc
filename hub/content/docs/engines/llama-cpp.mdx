@@ -1,0 +1,73 @@
+---
+title: Llama.cpp
+description: Configure and run models using the llama.cpp engine in Bloc.
+---
+
+# Llama.cpp Engine
+
+[llama.cpp](https://github.com/ggerganov/llama.cpp) is a lightweight C++ LLM inference engine optimized for CPU and Apple Silicon (Metal) execution, with solid NVIDIA (CUDA) support. It works exclusively with the highly compressed GGUF model format.
+
+To use Llama.cpp as your execution backend, set the `engine` field to `llama-cpp` in your Bloc recipe.
+
+## Llama.cpp Configuration Options
+
+When using the `llama-cpp` engine, you have access to a rich set of low-level parameters optimized for controlling memory mapping, CPU threading, and GPU offloading.
+
+| Recipe Field | Description | Example / Typical Value |
+| :--- | :--- | :--- |
+| `ctx_size` | Context window size (`-c`). | `8192`, `32768` |
+| `gpu_layers` | Number of layers to offload to the GPU (`-ngl`). Use `999` to offload all layers. | `999`, `32` |
+| `split_mode` | Multi-GPU split mode (`--split-mode`). Options: `none`, `layer`, `row`. | `layer` |
+| `main_gpu` | Main GPU index for tensor splitting (`--main-gpu`). | `0` |
+| `flash_attn` | Enable Flash Attention for faster, memory-efficient context processing (`-fa`). | `true` |
+| `batch_size` | Logical batch size for prompt processing (`-b`). | `512`, `2048` |
+| `ubatch_size` | Physical batch size for processing (`-ub`). | `512` |
+| `cache_type_k` | KV cache K-type (e.g., `f16`, `q8_0`, `q4_0`) to save memory. | `f16`, `q8_0` |
+| `cache_type_v` | KV cache V-type. | `f16`, `q8_0` |
+| `threads` | Number of CPU threads to use for generation (`-t`). | `8` |
+| `numa` | NUMA optimization strategy (`--numa`). | `distribute`, `isolate` |
+| `mlock` | Force system to keep model in RAM (`--mlock`). | `false` |
+| `mmap` | Memory-map the model file (default: `true`). Disabling this (`false`) implies loading all weights into RAM. | `true` |
+| `spec_type` | Speculative decoding type. | `draft` |
+| `spec_draft_model` | Path or ID to the draft model for speculative decoding. | `gguf/draft-model.gguf` |
+
+## Advanced: Extra Arguments
+
+If Llama.cpp introduces a new flag that Bloc does not yet have a native field for (or if you need to use an obscure optimization flag), you can use the `extra_args` field. 
+
+This acts as an "escape hatch" to pass arbitrary command-line arguments directly to the underlying engine. Bloc will validate these arguments against a security allowlist (to prevent malicious overrides like `--host` or `--model-path`) and then pass them straight through.
+
+```yaml
+engine_config:
+  extra_args:
+    - "--keep"
+    - "-1"
+```
+
+## Example Recipe
+
+Here is a complete example of a Bloc recipe that runs a GGUF model on `llama.cpp` using Metal or CUDA layer offloading, and Flash Attention enabled.
+
+```yaml
+version: "1.0"
+model:
+  repository: "arnav080/phi-3-mini-4k-instruct-gguf"
+  architecture: "llama"
+  gguf_repo: "microsoft/Phi-3-mini-4k-instruct-gguf"
+  file: "Phi-3-mini-4k-instruct-q4.gguf"
+engine: "llama-cpp"
+engine_config:
+  ctx_size: 4096
+  gpu_layers: 999
+  flash_attn: true
+  batch_size: 1024
+  threads: 8
+hardware:
+  min_vram: 4
+```
+
+## Troubleshooting
+
+*   **Model Not Loading Entirely on GPU:** Ensure `gpu_layers` is set high enough (e.g., `999` offloads all layers). If it crashes when offloading all layers, your system lacks the necessary VRAM.
+*   **Out of Memory (OOM) on CPU/RAM:** By default, `mmap` is enabled, which streams weights from disk. If you disable `mmap` to force it into RAM and you run out of memory, the process will be killed by the OS. Enable `mmap` if you have limited RAM.
+

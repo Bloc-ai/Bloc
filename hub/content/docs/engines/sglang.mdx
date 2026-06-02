@@ -1,0 +1,70 @@
+---
+title: SGLang
+description: Configure and run models using the SGLang engine in Bloc.
+---
+
+# SGLang Engine
+
+[SGLang](https://github.com/sgl-project/sglang) is a fast serving framework that co-designs the backend runtime and frontend language. It is highly optimized for complex prompting workflows, structured JSON decoding, and fast execution using RadixAttention for automatic KV cache reuse.
+
+To use SGLang as your execution backend, set the `engine` field to `sglang` in your Bloc recipe.
+
+## SGLang Configuration Options
+
+Bloc namespaces all SGLang-specific parameters with the `sglang_` prefix in your recipe file. This ensures your configurations remain strictly isolated if you switch the engine to vLLM or llama.cpp.
+
+| Recipe Field | Description | Example / Typical Value |
+| :--- | :--- | :--- |
+| `sglang_tensor_parallel_size` | Number of GPUs to use for tensor parallelism (`--tp-size`). | `1`, `2`, `4`, `8` |
+| `sglang_context_length` | The maximum context length allocated for the model. | `8192`, `131072` |
+| `sglang_mem_fraction_static` | The fraction of GPU memory allocated for the static KV cache pool. Lower this if you run into Out-Of-Memory (OOM) errors during startup. | `0.9` (Default), `0.7` |
+| `sglang_max_running_requests` | The maximum number of concurrent requests the engine will process. | `128`, `256` |
+| `sglang_chunked_prefill_size` | The chunk size for prefilling prompts. Useful for handling very long context windows without OOMing. | `4096`, `8192` |
+| `sglang_max_prefill_tokens` | The maximum number of tokens in a single prefill batch. | `16384` |
+| `sglang_cuda_graph_max_bs` | Maximum batch size for CUDA graph capturing. | `32`, `64` |
+| `sglang_quantization` | Specify the quantization format of the model weights (e.g., `fp8`, `awq`, `gptq`). | `fp8` |
+| `sglang_kv_cache_dtype` | Data type for the KV cache to save memory. | `fp16`, `fp8_e5m2` |
+| `sglang_reasoning_parser` | Parser for reasoning models (e.g., `deepseek_r1`). | `deepseek_r1` |
+| `sglang_tool_call_parser` | Parser for function calling outputs. | `llama3_json` |
+| `sglang_enable_multimodal` | Boolean flag to enable multimodal (vision/audio) model support. | `true` |
+| `sglang_cuda_visible_devices` | Explicitly pin the engine to specific GPU bus IDs (maps to the `CUDA_VISIBLE_DEVICES` environment variable). | `"0,1"` |
+
+## Advanced: Extra Arguments
+
+If SGLang introduces a new flag that Bloc does not yet have a native `sglang_` field for (or if you need to use an obscure optimization flag), you can use the `extra_args` field. 
+
+This acts as an "escape hatch" to pass arbitrary command-line arguments directly to the underlying engine. Bloc will validate these arguments against a security allowlist (to prevent malicious overrides like `--host` or `--model-path`) and then pass them straight through.
+
+```yaml
+engine_config:
+  extra_args:
+    - "--enable-metrics"
+    - "--enforce-eager"
+```
+
+## Example Recipe
+
+Here is a complete example of a Bloc recipe that runs a model on SGLang using 4 GPUs and 8-bit quantization:
+
+```yaml
+version: "1.0"
+model:
+  repository: "arnav080/kimi-k2-6-nvfp4-0xS"
+  architecture: "llama"
+engine: "sglang"
+engine_config:
+  sglang_tensor_parallel_size: 4
+  sglang_context_length: 262144
+  sglang_mem_fraction_static: 0.85
+  sglang_cuda_graph_max_bs: 64
+  sglang_enable_multimodal: false
+hardware:
+  min_vram: 80
+  recommended_gpus: 4
+```
+
+## Troubleshooting
+
+*   **OOM on Startup:** SGLang attempts to reserve a large portion of VRAM for the KV cache upfront. If the container crashes immediately upon model load, try lowering `sglang_mem_fraction_static` from the default to `0.7` or `0.8`.
+*   **CUDA Visible Devices:** Unlike generic environment variables, you must use the `sglang_cuda_visible_devices` parameter to pin GPU resources in Bloc to ensure the CLI safely passes the hardware boundary to the isolated container.
+
