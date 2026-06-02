@@ -49,13 +49,20 @@ export default function DeleteRecipeButton({
     const toastId = toast.loading("Deleting recipe from registry...");
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("recipes")
         .delete()
         .eq("creator", creator)
-        .eq("name", recipeName);
+        .eq("name", recipeName)
+        .select();
 
       if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error(
+          "Permission denied or recipe not found. Please ensure you are logged in with the correct account."
+        );
+      }
 
       toast.dismiss(toastId);
       toast.success("Recipe deleted successfully.", {
