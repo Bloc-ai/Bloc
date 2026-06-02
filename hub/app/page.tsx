@@ -155,7 +155,7 @@ export default async function Home() {
             {/* Hero Heading */}
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-medium tracking-tight text-center max-w-5xl leading-[1.3] font-switzer text-black dark:text-white mb-8">
               <HighlightText>
-                The huggingface For <br className="hidden md:inline" /> Local AI Deployments.
+                The Docker For <br className="hidden md:inline" /> Local AI Deployments.
               </HighlightText>
             </h1>
 
