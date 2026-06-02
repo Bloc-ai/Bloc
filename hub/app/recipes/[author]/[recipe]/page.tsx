@@ -379,10 +379,10 @@ export default async function RecipeDetailPage(props: PageProps) {
               <div className="flex flex-col items-center justify-center py-6 text-center select-none font-mono text-[9px] text-zinc-400 dark:text-zinc-500">
                 <p className="font-bold uppercase tracking-wider mb-2">No runs recorded yet</p>
                 <p className="max-w-xs leading-relaxed mb-4">
-                  Be the first to benchmark this recipe! Run the deploy command from your terminal:
+                  Be the first to benchmark this recipe! Run the CLI command from your terminal:
                 </p>
                 <div className="px-3 py-1.5 border border-zinc-300 dark:border-zinc-800 bg-zinc-200/40 dark:bg-zinc-900/40 text-zinc-800 dark:text-zinc-200 text-[10px] w-full font-bold select-text break-all">
-                  bloc deploy {recipe.id}
+                  bloc run {recipe.id}
                 </div>
               </div>
             ) : (
@@ -452,6 +452,6 @@ export async function generateMetadata(props: PageProps): Promise<Metadata> {
 
   return {
     title: `${recipe.creator}/${recipe.name} Local AI Recipe - Bloc Hub`,
-    description: `Deploy ${recipe.name} locally in one command. Optimized ${recipe.quantization} configuration for ${recipe.hardware.minVram} VRAM systems.`,
+    description: `Run ${recipe.name} locally in one command. Optimized ${recipe.quantization} configuration for ${recipe.hardware.minVram} VRAM systems.`,
   };
 }

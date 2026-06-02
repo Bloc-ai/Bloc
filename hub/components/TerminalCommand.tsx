@@ -8,7 +8,7 @@ interface TerminalCommandProps {
 }
 
 export default function TerminalCommand({
-  command = "bloc deploy arnav/qwen-3.5-9b-super",
+  command = "bloc run arnav/qwen-3.5-9b-super",
   className = "",
 }: TerminalCommandProps) {
   const [copied, setCopied] = useState(false);

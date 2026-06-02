@@ -63,7 +63,7 @@ function LoginContent() {
             Sign in to Bloc Hub
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 font-switzer font-medium text-xs leading-relaxed mt-3.5 max-w-sm mx-auto">
-            Discover, upload, and deploy low-latency local AI model recipes using high-performance hardware constraints.
+            Discover, upload, and run low-latency local AI model recipes using high-performance hardware constraints.
           </p>
         </div>
 

@@ -100,7 +100,7 @@ const STEPS = [
   {
     num: "03",
     title: "Run",
-    desc: "Anyone can deploy the exact same environment with one command.",
+    desc: "Anyone can run the exact same environment with one command.",
   },
 ];
 

@@ -43,15 +43,15 @@ Instead of writing instructions in a README file, a researcher can publish a ver
 When an enterprise or developer wants to use that specific model configuration, they do not need to spend hours configuring their server. They simply run a single command to pull the recipe:
 
 ```bash
-bloc deploy creator-name/model-recipe
+bloc run creator-name/model-recipe
 ```
 
 ### Bridging the Gap from Optimization to API
 
-By serving as a registry for local AI configurations, Bloc completely changes how models are deployed and consumed:
+By serving as a registry for local AI configurations, Bloc completely changes how models are run and consumed:
 
-* **Instant API Generation:** The moment a recipe is deployed, Bloc launches the underlying runtime and exposes a standardized OpenAI-compatible API endpoint. Anyone on the network can immediately start querying the model without needing to understand the underlying hardware flags.
+* **Instant API Generation:** The moment a recipe is run, Bloc launches the underlying runtime and exposes a standardized OpenAI-compatible API endpoint. Anyone on the network can immediately start querying the model without needing to understand the underlying hardware flags.
 * **Democratized Systems Engineering:** Expert systems engineers can spend their time fine-tuning a model for peak performance, unified memory usage, or multi-GPU environments. Once they upload the recipe, less technical developers can leverage those exact configurations instantly.
 * **Unified Registry for Runtimes:** Just as Hugging Face became the standard for sharing model architectures and weights, Bloc serves as the standard for sharing the execution layer. It bridges the gap between raw research and production-grade local deployments.
 
-The future of local AI depends on reproducibility and shared knowledge. By making optimized configurations portable, Bloc ensures that the best research and optimization techniques can be deployed by anyone, anywhere, in seconds.
+The future of local AI depends on reproducibility and shared knowledge. By making optimized configurations portable, Bloc ensures that the best research and optimization techniques can be run by anyone, anywhere, in seconds.

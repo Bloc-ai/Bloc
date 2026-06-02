@@ -9,7 +9,7 @@ import (
 )
 
 // Resolve returns the correct Runtime implementation for the given recipe.
-// This is the single dispatch point — cmd/deploy.go calls Resolve() and
+// This is the single dispatch point — cmd/run.go calls Resolve() and
 // then interacts only with the Runtime interface, never with concrete types.
 //
 // The runtimeOverride parameter maps to the --runtime CLI flag.
@@ -34,7 +34,7 @@ func Resolve(r *recipe.Recipe, runtimeOverride string) (Runtime, error) {
 
 	case "vllm":
 		// Resolve version once here so Name(), Probe(), and Run() all use
-		// the same pinned string throughout the deploy lifecycle.
+		// the same pinned string throughout the run lifecycle.
 		version := resolveVLLMVersion(r.Engine.Version)
 
 		switch engineRuntime {

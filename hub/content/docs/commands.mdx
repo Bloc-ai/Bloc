@@ -3,7 +3,7 @@ title: Commands Reference
 description: Complete command-line interface reference for the Bloc CLI.
 ---
 
-The Bloc CLI is a unified terminal client used to search, deploy, and manage local AI environment runs.
+The Bloc CLI is a unified terminal client used to search, run, and manage local AI environment runs.
 
 ## Usage
 
@@ -52,13 +52,13 @@ bloc search deepseek --vram 8GB --platform cuda
 
 ---
 
-## Deployment Commands
+## Execution Commands
 
-### `bloc deploy [author/recipe]`
+### `bloc run [author/recipe]`
 Fetches a recipe manifest from the registry, downloads the required weights (either GGUF or Hugging Face repository files), validates your local execution capabilities, runs pre-run setup scripts, and starts the API server.
 
 ```bash
-bloc deploy arnav/qwen3-30b-moe-8gb-cpu-offload
+bloc run arnav/qwen3-30b-moe-8gb-cpu-offload
 ```
 
 - **Arguments**: Required recipe path in the format `{username}/{recipe-name}`.
@@ -87,7 +87,7 @@ Manage Docker container images pulled by containerized recipes.
 Manage versioned local engines and execution runtime environments.
 
 * **`bloc runtime status`**: Scan your system PATH for `llama-server` and `docker`, verify Docker daemon access, check for installed Python virtual environments, and test if the NVIDIA Container Toolkit GPU passthrough is functional.
-* **`bloc runtime list`**: List all locally installed python virtual environments created by `native` vLLM deployments with Python version, installation date, and size.
+* **`bloc runtime list`**: List all locally installed python virtual environments created by `native` vLLM runs with Python version, installation date, and size.
 * **`bloc runtime prune`**: Interactively select and delete cached versioned python environments.
 
 ### `bloc models`

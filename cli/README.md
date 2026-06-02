@@ -15,11 +15,11 @@ curl -fsSL https://bloc-hub.com/install.sh | bash
 ```
 
 ```bash
-# Deploy a recipe
-bloc deploy arnav080/qwen3-30b-moe-8gb-cpu-offload
+# Run a recipe
+bloc run arnav080/qwen3-30b-moe-8gb-cpu-offload
 
 # Dry run (preview the llama-server command)
-bloc deploy arnav080/qwen3-30b-moe-8gb-cpu-offload --dry-run
+bloc run arnav080/qwen3-30b-moe-8gb-cpu-offload --dry-run
 
 # Search the registry
 bloc search qwen3 --vram 8GB --platform cuda
@@ -31,7 +31,7 @@ bloc models
 bloc telemetry off
 ```
 
-## How `bloc deploy` Works
+## How `bloc run` Works
 
 ```
 1. Fetch recipe YAML from bloc-hub.com/api
@@ -63,7 +63,7 @@ cli/
 ├── main.go
 ├── cmd/
 │   ├── root.go         # Cobra root
-│   ├── deploy.go       # Core command (all 8 steps)
+│   ├── run.go          # Core command (all 8 steps)
 │   ├── search.go
 │   ├── models.go
 │   ├── login.go
@@ -83,7 +83,7 @@ cli/
 
 ## Telemetry
 
-Off by default. First `bloc deploy` will prompt once. You can also:
+Off by default. First `bloc run` will prompt once. You can also:
 
 ```bash
 bloc telemetry off   # Disable permanently

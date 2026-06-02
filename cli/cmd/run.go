@@ -68,28 +68,29 @@ var recipeIDRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.\-]{0,99}$`)
 // Authors who need complex commands should put them in a script file and call that.
 var preRunCmdBannedRe = regexp.MustCompile(`[;|&` + "`" + `$(){}><\r\n\\]`)
 
-var deployDryRun bool
-var deployNoTelemetry bool
-var deployRuntime string // --runtime flag: overrides recipe's engine.runtime
+var runDryRun bool
+var runNoTelemetry bool
+var runRuntime string // --runtime flag: overrides recipe's engine.runtime
 
-var deployCmd = &cobra.Command{
-	Use:   "deploy [author/recipe]",
-	Short: "Fetch and run a recipe from the Bloc registry",
+var runCmd = &cobra.Command{
+	Use:     "run [author/recipe]",
+	Aliases: []string{"deploy"},
+	Short:   "Fetch and run a recipe from the Bloc registry",
 	Long: `Fetch a recipe from bloc-theta.vercel.app, probe your hardware and runtime
 capabilities, download the model weights if needed, and launch the server.
 
 Examples:
-  bloc deploy arnav080/qwen3-30b-moe-8gb-cpu-offload
-  bloc deploy arnav080/qwen3-30b-moe-8gb-cpu-offload --dry-run
-  bloc deploy arnav080/step-3.7-flash --runtime docker`,
+  bloc run arnav080/qwen3-30b-moe-8gb-cpu-offload
+  bloc run arnav080/qwen3-30b-moe-8gb-cpu-offload --dry-run
+  bloc run arnav080/step-3.7-flash --runtime docker`,
 	Args: cobra.ExactArgs(1),
-	RunE: runDeploy,
+	RunE: runRecipe,
 }
 
 func init() {
-	deployCmd.Flags().BoolVar(&deployDryRun, "dry-run", false, "Show the server command without running it")
-	deployCmd.Flags().BoolVar(&deployNoTelemetry, "no-telemetry", false, "Disable telemetry for this run")
-	deployCmd.Flags().StringVar(&deployRuntime, "runtime", "", "Override recipe's declared runtime (native|docker)")
+	runCmd.Flags().BoolVar(&runDryRun, "dry-run", false, "Show the server command without running it")
+	runCmd.Flags().BoolVar(&runNoTelemetry, "no-telemetry", false, "Disable telemetry for this run")
+	runCmd.Flags().StringVar(&runRuntime, "runtime", "", "Override recipe's declared runtime (native|docker)")
 }
 
 func isLocalRecipe(path string) bool {
@@ -102,14 +103,12 @@ func isLocalRecipe(path string) bool {
 	return false
 }
 
-func runDeploy(cmd *cobra.Command, args []string) error {
+func runRecipe(cmd *cobra.Command, args []string) error {
 	recipeID := args[0]
 	var r *recipe.Recipe
 	var err error
 	isLocal := isLocalRecipe(recipeID)
 
-	// Fix #8: stepN is now a local variable scoped to this invocation.
-	// The old package-level var broke if runDeploy was called twice in a process.
 	var stepN int
 	printStep := func(label string) {
 		stepN++
@@ -150,7 +149,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 
 	// ── Step 2: Resolve runtime ────────────────────────────────────────────────
 	printStep("Resolving runtime")
-	rt, err := runtime.Resolve(r, deployRuntime)
+	rt, err := runtime.Resolve(r, runRuntime)
 	if err != nil {
 		return fmt.Errorf("cannot resolve runtime: %w", err)
 	}
@@ -203,7 +202,6 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  \033[32m✓\033[0m  %s — all required flags supported\n", probeResult.BinaryPath)
 
 	// ── Context for all long-running operations (downloads + server) ────────────
-	// SEC: Created here (before Step 5) so Ctrl+C during download is honoured.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -217,9 +215,6 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Fix #6: Load HF token and inject into the downloader.
-	// BLOC_HF_TOKEN env var takes precedence over stored credentials.
-	// F-21: Token is never logged or included in error messages.
 	if hfCreds, hfErr := config.LoadHFAuth(); hfErr == nil && hfCreds != nil {
 		dm.SetHFToken(hfCreds.Token)
 	}
@@ -228,7 +223,6 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	var modelPath string
 
 	if r.Model.HFRepo != "" {
-		// ── HuggingFace repo download (vLLM safetensors + config + tokenizer) ───
 		bw := bufio.NewWriterSize(os.Stdout, 1024)
 		if dm.IsRepoCached(r.Model.HFRepo, "") {
 			modelPath = dm.RepoPath(r.Model.HFRepo, "main")
@@ -266,7 +260,6 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			fmt.Printf("  \033[32m✓\033[0m  Saved to %s\n", modelPath)
 		}
 	} else {
-		// ── Single-file GGUF download (llama.cpp) ─────────────────────────────
 		cached, _ := dm.IsAlreadyCached(r.Model.File, r.Model.SHA256)
 		bw := bufio.NewWriterSize(os.Stdout, 1024)
 		if cached {
@@ -307,9 +300,6 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	// ── Step 6: Pre-run commands ───────────────────────────────────────────────
 	if len(r.PreRun.Commands) > 0 {
 		printStep("Pre-run setup")
-		// SEC-02: Validate each command against an allowlist before showing or executing.
-		// We reject commands containing shell metacharacters to prevent injection.
-		// Authors who need more complex commands should put them in a script.
 		for _, c := range r.PreRun.Commands {
 			if preRunCmdBannedRe.MatchString(c) {
 				return fmt.Errorf("pre-run command %q contains shell metacharacters — use a script instead", c)
@@ -330,10 +320,6 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	}
 
 	// ── Step 7: trust_remote_code gate (F-19) ─────────────────────────────────
-	// If the recipe requests custom model code execution, require an explicit
-	// user confirmation. This flag is NOT passable through extra_args (which would
-	// be silently accepted); it must appear as a first-class field so this gate
-	// always fires. The confirm prompt makes clear what the user is accepting.
 	engineName := r.Engine.Name
 	if engineName == "" {
 		engineName = "llama.cpp"
@@ -347,21 +333,16 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		fmt.Println("  Only proceed if you trust the model author and have reviewed the code at:")
 		fmt.Printf("  \033[36mhttps://huggingface.co/%s/tree/main\033[0m\n", r.Model.HFRepo)
 		fmt.Println()
-		// SEC-09: Use confirmYesExplicit — EOF (e.g. non-interactive pipe) must default to No
-		// for security-critical prompts, not Yes like the regular confirm() helper does.
 		if !confirmYesExplicit("  Allow execution of custom model code? [y/N]: ") {
 			return fmt.Errorf("trust_remote_code rejected by user — aborting")
 		}
 	}
 
 	// ── Step 8: Build flags (engine-aware) + dry-run ───────────────────────────
-	// Route to the correct flag builder based on engine. vLLM and llama.cpp have
-	// entirely different CLI flag namespaces — they must never be mixed.
 	var flags []string
 	switch engineName {
 	case "vllm":
 		flags = r.BuildVLLMFlags()
-		// F-19: inject --trust-remote-code ONLY after user confirmed above
 		if r.EngineConfig.TrustRemoteCode {
 			flags = append(flags, "--trust-remote-code")
 		}
@@ -369,7 +350,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		flags = r.BuildFlags()
 	}
 
-	if deployDryRun {
+	if runDryRun {
 		fmt.Printf("\n\033[36m── Dry run: %s command ──────────────────────────────────────────\033[0m\n", rt.Name())
 		switch engineName {
 		case "vllm":
@@ -388,9 +369,8 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-
 	// Telemetry consent (first run only)
-	if !deployNoTelemetry && !isLocal {
+	if !runNoTelemetry && !isLocal {
 		telemetry.MaybePromptConsent()
 	}
 
@@ -400,8 +380,8 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		ModelPath: modelPath,
 		Flags:     flags,
 		EnvVars:   r.PreRun.Env,
-		Port:      r.EngineConfig.Port, // Fix #5: dynamic port in startup message
-		Recipe:    r,                   // Phase 4: Docker runtime needs metadata for container slug
+		Port:      r.EngineConfig.Port,
+		Recipe:    r,
 	}
 	if modelPath != "" {
 		now := time.Now()
@@ -413,7 +393,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	}
 
 	// ── Step 9: Shutdown + telemetry ──────────────────────────────────────────
-	if !deployNoTelemetry && !isLocal && stats != nil {
+	if !runNoTelemetry && !isLocal && stats != nil {
 		t, _ := config.LoadTelemetry()
 		if t != nil && t.Enabled {
 			telemetry.Send(recipeID, stats)
@@ -444,11 +424,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 }
 
 // fetchRecipe downloads and parses the recipe YAML from the Hub API.
-// F-09: Path segments are URL-encoded and validated before use.
-// F-14: Response body is limited to 1 MB to prevent memory DoS.
-// Fix #7: Bloc Hub auth token is injected if a session exists.
 func fetchRecipe(author, name string) (*recipe.Recipe, error) {
-	// F-09: url.PathEscape ensures special characters don't create path traversal
 	apiURL := fmt.Sprintf("%s/recipes/%s/%s",
 		hubAPIBase,
 		url.PathEscape(author),
@@ -462,13 +438,10 @@ func fetchRecipe(author, name string) (*recipe.Recipe, error) {
 	req.Header.Set("Accept", "application/yaml, application/json")
 	req.Header.Set("User-Agent", "bloc-cli/"+Version)
 
-	// Fix #7: Inject Bloc Hub token if the user is logged in.
-	// Non-fatal if credentials are missing or unreadable — public recipes work without auth.
 	if auth, authErr := config.LoadAuth(); authErr == nil && auth != nil && auth.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+auth.Token)
 	}
 
-	// P-01: Use shared package-level apiClient (not a new client per call)
 	resp, err := apiClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("network error: %w", err)
@@ -482,14 +455,11 @@ func fetchRecipe(author, name string) (*recipe.Recipe, error) {
 		return nil, fmt.Errorf("server returned %d", resp.StatusCode)
 	}
 
-	// F-14: Limit response to 1 MB — a valid recipe YAML is never this large.
-	// Prevents memory DoS if a malicious Hub returns a huge payload.
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return nil, err
 	}
 
-	// Try to unwrap JSON envelope {"yaml_content": "..."} from the Hub API
 	var envelope struct {
 		YAMLContent string `json:"yaml_content"`
 	}
@@ -497,16 +467,9 @@ func fetchRecipe(author, name string) (*recipe.Recipe, error) {
 		return recipe.Parse([]byte(envelope.YAMLContent))
 	}
 
-	// Fallback: treat the response body as raw YAML
 	return recipe.Parse(body)
 }
 
-// _unusedPrintStep was a dead function left after refactoring printStep into a
-// local closure. Removed to reduce attack surface (SEC-17: dead code).
-
-// confirm reads a y/n answer from stdin.
-// Default (empty input or EOF on a non-interactive pipe) is YES.
-// Use this for low-risk prompts like "continue with low disk space?".
 func confirm(prompt string) bool {
 	fmt.Print(prompt)
 	scanner := bufio.NewScanner(os.Stdin)
@@ -514,14 +477,9 @@ func confirm(prompt string) bool {
 		ans := strings.ToLower(strings.TrimSpace(scanner.Text()))
 		return ans == "y" || ans == "yes" || ans == ""
 	}
-	// EOF — default Yes for non-security prompts
 	return true
 }
 
-// confirmYesExplicit reads a y/n answer from stdin.
-// Default (empty input or EOF) is NO.
-// SEC-09: Use for security-critical prompts (e.g., trust_remote_code) so that
-// non-interactive piped execution cannot silently accept dangerous permissions.
 func confirmYesExplicit(prompt string) bool {
 	fmt.Print(prompt)
 	scanner := bufio.NewScanner(os.Stdin)
@@ -529,11 +487,9 @@ func confirmYesExplicit(prompt string) bool {
 		ans := strings.ToLower(strings.TrimSpace(scanner.Text()))
 		return ans == "y" || ans == "yes"
 	}
-	// EOF — default No for security-critical prompts
 	return false
 }
 
-// progressBar renders an ASCII progress bar of given width.
 func progressBar(pct, width int) string {
 	filled := width * pct / 100
 	if filled > width {
@@ -547,7 +503,6 @@ func progressBar(pct, width int) string {
 	return bar
 }
 
-// shortDesc truncates a description to maxLen characters.
 func shortDesc(s string, maxLen int) string {
 	s = strings.TrimSpace(strings.ReplaceAll(s, "\n", " "))
 	if len(s) <= maxLen {
@@ -556,17 +511,10 @@ func shortDesc(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-// runShellCommand executes a shell command with the given env vars.
-// F-01: Previously a no-op stub — now actually executes the command.
-// Uses exec.Command("sh", "-c", command) to avoid the fmt.Sprintf("%q") injection
-// that was present in the original stub (Go %q != shell quoting).
 func runShellCommand(command string, env map[string]string) error {
 	if strings.TrimSpace(command) == "" {
 		return nil
 	}
-	// #nosec G204 — commands are from recipe YAML; user reviewed and confirmed the list above.
-	// We use "sh -c command" as a single argument so the shell handles quoting,
-	// NOT fmt.Sprintf which uses Go string quoting (different from shell quoting).
 	cmd := exec.Command("sh", "-c", command)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -580,7 +528,6 @@ func runShellCommand(command string, env map[string]string) error {
 func checkDiskSpace(cacheDir string, sizeGB float64) error {
 	freeBytes, err := hardware.FreeSpaceBytes(cacheDir)
 	if err != nil {
-		// Non-fatal if we can't query disk space, just continue
 		return nil
 	}
 

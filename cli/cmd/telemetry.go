@@ -32,7 +32,7 @@ func runTelemetry(cmd *cobra.Command, args []string) error {
 
 	if len(args) == 0 || args[0] == "show" {
 		if !t.ConsentGiven {
-			fmt.Println("Telemetry: not yet configured (will prompt on next deploy)")
+			fmt.Println("Telemetry: not yet configured (will prompt on next run)")
 		} else if t.Enabled {
 			fmt.Println("Telemetry: \033[32menabled\033[0m")
 		} else {

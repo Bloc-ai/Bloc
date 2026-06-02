@@ -142,7 +142,7 @@ func (r *DockerVLLMRuntime) OfferInstall() bool {
 	fmt.Println("  Docker is required to use the Docker vLLM runtime.")
 	fmt.Println("  Install Docker Desktop: \033[36mhttps://www.docker.com/products/docker-desktop/\033[0m")
 	fmt.Println()
-	fmt.Println("  After installing Docker, re-run your deploy command.")
+	fmt.Println("  After installing Docker, re-run your run command.")
 	return false
 }
 

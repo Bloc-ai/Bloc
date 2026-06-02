@@ -78,7 +78,7 @@ func TestBuildVLLMFlags_SpeculativeDecoding(t *testing.T) {
 
 func TestBuildVLLMFlags_TrustRemoteCodeNotInjected(t *testing.T) {
 	// F-19: BuildVLLMFlags must NOT inject --trust-remote-code.
-	// It is only added by deploy.go AFTER explicit user confirmation.
+	// It is only added by run.go AFTER explicit user confirmation.
 	r := &Recipe{
 		Schema: "bloc/v1",
 		EngineConfig: EngineConfig{
@@ -88,7 +88,7 @@ func TestBuildVLLMFlags_TrustRemoteCodeNotInjected(t *testing.T) {
 	flags := r.BuildVLLMFlags()
 	for _, f := range flags {
 		if f == "--trust-remote-code" {
-			t.Error("BuildVLLMFlags must NOT inject --trust-remote-code — F-19 gate must do it in deploy.go")
+			t.Error("BuildVLLMFlags must NOT inject --trust-remote-code — F-19 gate must do it in run.go")
 		}
 	}
 }

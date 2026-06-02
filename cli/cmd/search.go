@@ -103,6 +103,6 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		desc := shortDesc(r.Description, 40)
 		fmt.Printf("%-40s %-12s %-8s %s\n", id, r.Platform, r.MinVRAM, desc)
 	}
-	fmt.Printf("\n%d result(s). Deploy with: bloc deploy <author/recipe>\n", len(results))
+	fmt.Printf("\n%d result(s). Run with: bloc run <author/recipe>\n", len(results))
 	return nil
 }

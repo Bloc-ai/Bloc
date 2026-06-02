@@ -21,7 +21,7 @@ const CARDS: CardData[] = [
   },
   {
     title: "Developer CLI Tool",
-    desc: "A lightweight terminal client to deploy, benchmark, and serve local AI environments instantly with a single offline command.",
+    desc: "A lightweight terminal client to run, benchmark, and serve local AI environments instantly with a single offline command.",
     link: "https://github.com/Bloc-ai/Bloc/tree/main/cli"
   }
 ];

@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Bloc Hub",
-    description: "The local-first model registry and deployment toolchain.",
+    description: "The local-first model registry and runner toolchain.",
     url: "https://bloc-theta.vercel.app",
     siteName: "Bloc Hub",
     images: [

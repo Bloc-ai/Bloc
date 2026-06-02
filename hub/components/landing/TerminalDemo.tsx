@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 
 const TERMINAL_LINES = [
-  { text: "bloc deploy alice/qwen-7b-budget-beast", delay: 1000, isCommand: true },
+  { text: "bloc run alice/qwen-7b-budget-beast", delay: 1000, isCommand: true },
   { text: "[info] Probing system capabilities...", delay: 800 },
   { text: "[info] Detected GPU: NVIDIA RTX 3050 (8GB VRAM)", delay: 800 },
   { text: "[info] Downloading manifest from hub...", delay: 600 },

@@ -10,7 +10,7 @@ import (
 
 // Runtime is the common interface all execution engines must implement.
 // Each engine (llama.cpp, native vLLM, Docker vLLM) provides its own
-// implementation. cmd/deploy.go interacts only with this interface —
+// implementation. cmd/run.go interacts only with this interface —
 // no engine-specific logic leaks into the command layer.
 type Runtime interface {
 	// Name returns a human-readable engine label for CLI output.

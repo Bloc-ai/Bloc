@@ -1,8 +1,8 @@
 # Bloc: The Unified Local AI Orchestration Monorepo
 
-Bloc is a lightweight, local-first orchestrator for deploying, caching, and serving large language models (LLMs) on consumer hardware. 
+Bloc is a lightweight, local-first orchestrator for running, caching, and serving large language models (LLMs) on consumer hardware. 
 
-By separating the indexing and registry layer from the local runner engine (the **Sealed Envelope Pattern**), Bloc allows developers to configure, share, and run optimized model deployments with maximum stability and zero-configuration setups.
+By separating the indexing and registry layer from the local runner engine (the **Sealed Envelope Pattern**), Bloc allows developers to configure, share, and run optimized model setups with maximum stability and zero-configuration setups.
 
 ---
 
@@ -22,7 +22,7 @@ By separating the indexing and registry layer from the local runner engine (the 
 ```
 bloc/
 ├── cli/                 # Go-based CLI terminal client
-│   ├── cmd/             # Cobra commands (deploy, cache, images, runtime, models)
+│   ├── cmd/             # Cobra commands (run, cache, images, runtime, models)
 │   ├── internal/        # Core CLI logic (hardware probe, downloader, runtimes)
 │   └── main.go
 │
@@ -65,11 +65,11 @@ bloc login
 # Search for optimized Qwen models matching your hardware
 bloc search qwen3 --vram 8GB --platform cuda
 
-# Deploy a recipe natively as a local process
-bloc deploy arnav080/qwen3-30b-moe-8gb-cpu-offload
+# Run a recipe natively as a local process
+bloc run arnav080/qwen3-30b-moe-8gb-cpu-offload
 
-# Deploy a recipe inside an isolated Docker container
-bloc deploy arnav080/llama-3-8b-instruct --runtime docker
+# Run a recipe inside an isolated Docker container
+bloc run arnav080/llama-3-8b-instruct --runtime docker
 
 # View local download cache and virtual environments
 bloc cache status

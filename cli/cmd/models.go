@@ -169,7 +169,7 @@ func runModels(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(models) == 0 {
-		fmt.Println("No models cached. Run 'bloc deploy <recipe>' to download one.")
+		fmt.Println("No models cached. Run 'bloc run <recipe>' to download one.")
 		return nil
 	}
 

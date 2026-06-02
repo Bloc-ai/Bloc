@@ -94,7 +94,7 @@ func InstallInstructions() string {
   Linux:   Download the prebuilt binary from https://github.com/ggml-org/llama.cpp/releases
            or build from source: https://bloc-theta.vercel.app/install
 
-Once installed, re-run: bloc deploy <recipe>`
+Once installed, re-run: bloc run <recipe>`
 }
 
 // OfferInstall asks the user if they'd like to install llama.cpp now.

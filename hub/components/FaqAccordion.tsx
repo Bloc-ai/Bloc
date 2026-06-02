@@ -16,8 +16,8 @@ export default function FaqAccordion() {
       answer: "A recipe is a pre-configured, reproducible environment descriptor that defines the model weight quantization, llama.cpp startup parameters, system prompts, and required hardware profile (CPU, Metal, or specific CUDA setups) to run an LLM optimally.",
     },
     {
-      question: "How do I deploy a recipe?",
-      answer: "Install the Bloc CLI using npm or brew, then run 'bloc deploy <recipe-name>'. The CLI pulls the optimized weights and handles dependencies, starting a local API server in seconds.",
+      question: "How do I run a recipe?",
+      answer: "Install the Bloc CLI using npm or brew, then run 'bloc run <recipe-name>'. The CLI pulls the optimized weights and handles dependencies, starting a local API server in seconds.",
     },
     {
       question: "Is Bloc Hub fully open-source and local?",

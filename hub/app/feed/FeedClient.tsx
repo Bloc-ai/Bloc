@@ -169,7 +169,7 @@ export default function FeedClient() {
   // Copy command to clipboard
   const handleCopy = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    const command = `bloc deploy ${id}`;
+    const command = `bloc run ${id}`;
     navigator.clipboard.writeText(command);
     setCopiedId(id);
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
@@ -401,14 +401,14 @@ export default function FeedClient() {
                   </div>
                 </div>
 
-                {/* Deploy Action Copy Command Row */}
+                {/* Run Action Copy Command Row */}
                 <div className="flex items-center justify-between gap-4 mt-6">
                   <div className="w-full max-w-xl">
                     <button 
                       onClick={(e) => handleCopy(e, recipe.id)}
                       className="w-full flex items-center justify-between px-3 h-8 bg-zinc-200/50 dark:bg-zinc-900/50 hover:bg-zinc-200 dark:hover:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 group/btn font-mono text-[10px] text-zinc-850 dark:text-zinc-200 cursor-pointer active:scale-[0.98] transition-all"
                     >
-                      <span className="truncate select-text">bloc deploy {recipe.id}</span>
+                      <span className="truncate select-text">bloc run {recipe.id}</span>
                       <span className="flex-shrink-0 ml-4 font-bold uppercase text-[9px] text-zinc-400 group-hover/btn:text-blue-600 dark:group-hover/btn:text-blue-400 transition-colors">
                         {copiedId === recipe.id ? "Copied!" : "Copy"}
                       </span>

@@ -24,7 +24,7 @@ var rootCmd = &cobra.Command{
 ██████╔╝███████╗╚██████╔╝╚██████╗ 
 ╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝ 
 
-Bloc is a CLI tool for discovering, deploying, and running
+Bloc is a CLI tool for discovering, running, and managing
 local AI models using community-curated recipes from bloc-theta.vercel.app.
 
 Run 'bloc help' to see all available commands.`,
@@ -43,7 +43,7 @@ func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(logoutCmd)
-	rootCmd.AddCommand(deployCmd)
+	rootCmd.AddCommand(runCmd)
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(modelsCmd)
 	rootCmd.AddCommand(telemetryCmd)

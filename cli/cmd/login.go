@@ -297,8 +297,8 @@ func runLoginHF() error {
 
 	fmt.Println("  Credentials saved to ~/.config/bloc/hf_auth.json")
 	fmt.Println()
-	fmt.Println("  You can now deploy gated models:")
-	fmt.Println("    bloc deploy your-username/llama3-8b-gated")
+	fmt.Println("  You can now run gated models:")
+	fmt.Println("    bloc run your-username/llama3-8b-gated")
 	fmt.Println()
 	return nil
 }

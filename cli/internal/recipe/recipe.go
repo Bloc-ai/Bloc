@@ -188,7 +188,7 @@ func ParseFileLocal(path string) (*Recipe, error) {
 // Parse unmarshals recipe YAML bytes under strict registry security rules.
 // F-14: Caller must wrap the input in io.LimitReader before calling Parse
 // to prevent memory DoS via huge YAML payloads. The 1 MB limit is enforced
-// in cmd/deploy.go's fetchRecipe function.
+// in cmd/run.go's fetchRecipe function.
 func Parse(data []byte) (*Recipe, error) {
 	return parse(data, false)
 }
@@ -443,7 +443,7 @@ func (r *Recipe) RequiredFlags() map[string]struct{} {
 //
 // Only vLLM-relevant fields are emitted. The model path itself is injected by
 // NativeVLLMRuntime.Run (as --model <path>) before this slice is appended.
-// F-19: TrustRemoteCode is NOT injected here — deploy.go gates it with an
+// F-19: TrustRemoteCode is NOT injected here — run.go gates it with an
 // explicit user confirm prompt before passing --trust-remote-code to this list.
 func (r *Recipe) BuildVLLMFlags() []string {
 	cfg := r.EngineConfig

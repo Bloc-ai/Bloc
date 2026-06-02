@@ -77,7 +77,7 @@ export default function InstallationClient() {
           Installation & Setup
         </h1>
         <p className="text-zinc-500 dark:text-zinc-400 font-switzer font-medium text-sm md:text-base max-w-3xl leading-relaxed">
-          Install the Bloc CLI to manage resources, scan local GPU bounds, and deploy optimized model configurations locally in one command.
+          Install the Bloc CLI to manage resources, scan local GPU bounds, and run optimized model configurations locally in one command.
         </p>
       </div>
 
@@ -201,13 +201,13 @@ export default function InstallationClient() {
           <button 
             onClick={() => {
               const testCmd = activeOS === "macos" 
-                ? "bloc deploy arnav/deepseek-r1-8b-metal" 
-                : "bloc deploy alice/qwen-7b-budget-beast";
+                ? "bloc run arnav/deepseek-r1-8b-metal" 
+                : "bloc run alice/qwen-7b-budget-beast";
               handleCopy(testCmd);
             }}
             className="w-full flex items-center justify-between px-2 h-7 bg-zinc-200/50 dark:bg-zinc-900/50 hover:bg-zinc-200 dark:hover:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 font-mono text-[9px] text-zinc-800 dark:text-zinc-200 cursor-pointer mt-4"
           >
-            <span className="truncate">{activeOS === "macos" ? "bloc deploy arnav/deepseek..." : "bloc deploy alice/qwen..."}</span>
+            <span className="truncate">{activeOS === "macos" ? "bloc run arnav/deepseek..." : "bloc run alice/qwen..."}</span>
             <span className="text-zinc-400 font-bold uppercase shrink-0">Copy</span>
           </button>
         </div>

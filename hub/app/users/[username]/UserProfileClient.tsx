@@ -198,7 +198,7 @@ export default function UserProfileClient({
 
   const handleCopy = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    const command = `bloc deploy ${id}`;
+    const command = `bloc run ${id}`;
     navigator.clipboard.writeText(command);
     setCopiedId(id);
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
@@ -974,7 +974,7 @@ function RecipeCard({
             <svg viewBox="0 0 12 12" className="absolute bottom-0 right-0 w-1 h-1 fill-zinc-400 dark:fill-zinc-600 scale-x-[-1] scale-y-[-1] pointer-events-none">
               <path d="M 0,12 L 0,0 L 12,0 L 12,1 L 4,1 Q 1,1 1,4 L 1,12 Z" />
             </svg>
-            <span className="truncate select-text">bloc deploy {recipe.id}</span>
+            <span className="truncate select-text">bloc run {recipe.id}</span>
             <span className="flex-shrink-0 ml-4 font-bold uppercase text-[9px] text-zinc-400 group-hover/btn:text-blue-600 dark:group-hover/btn:text-blue-400 transition-colors">
               {copiedId === recipe.id ? "Copied!" : "Copy"}
             </span>
