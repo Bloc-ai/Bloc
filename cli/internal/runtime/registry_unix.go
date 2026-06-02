@@ -59,7 +59,36 @@ func Resolve(r *recipe.Recipe, runtimeOverride string) (Runtime, error) {
 			return nil, fmt.Errorf("unknown runtime %q for engine %q — valid options: native, docker", engineRuntime, engineName)
 		}
 
+	case "sglang":
+		// SGLang is Docker-only in Bloc v1.
+		// Native mode is explicitly unsupported: it requires CUDA toolkit and
+		// Python virtualenv management that exceeds the scope of a local dev
+		// tool. SGLang is primarily a multi-GPU CUDA workload.
+		switch engineRuntime {
+		case "native":
+			return nil, fmt.Errorf(
+				"engine=sglang does not support runtime=native in Bloc\n" +
+					"  SGLang requires a multi-GPU CUDA environment best managed via Docker.\n" +
+					"  Remove 'runtime: native' from your recipe, or set 'runtime: docker'.",
+			)
+
+		case "docker", "":
+			// F-15: image tag format validated at recipe.Parse() time.
+			// Belt-and-suspenders empty check for recipes bypassing Parse().
+			image := r.Engine.Image
+			if image == "" {
+				return nil, fmt.Errorf(
+					"engine.image is required for the sglang engine\n" +
+						"  Example: image: lmsysorg/sglang:v0.5.12.post1",
+				)
+			}
+			return &SGLangDockerRuntime{image: image}, nil
+
+		default:
+			return nil, fmt.Errorf("unknown runtime %q for engine %q — valid option: docker", engineRuntime, engineName)
+		}
+
 	default:
-		return nil, fmt.Errorf("unsupported engine %q — supported engines: llama.cpp, vllm", engineName)
+		return nil, fmt.Errorf("unsupported engine %q — supported engines: llama.cpp, vllm, sglang", engineName)
 	}
 }

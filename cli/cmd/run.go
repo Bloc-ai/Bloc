@@ -166,40 +166,50 @@ func runRecipe(cmd *cobra.Command, args []string) error {
 		if !ok {
 			fmt.Printf("\n  \033[33m⚠  VRAM warning:\033[0m This recipe requires %.0f GB VRAM.\n", requiredGB)
 			fmt.Printf("     Your system has %.1f GB available.\n", detectedGB)
-			if !confirm("     Continue anyway? [y/N]: ") {
+			if runDryRun {
+				fmt.Println("     [Dry Run] Proceeding with dry-run command display.")
+			} else if !confirm("     Continue anyway? [y/N]: ") {
 				return fmt.Errorf("aborted by user")
 			}
 		}
 	}
 
 	// ── Step 4: Runtime Capability Check ──────────────────────────────────────
-	printStep(fmt.Sprintf("Checking %s capabilities", rt.Name()))
-	requiredFlags := r.RequiredFlags()
-	probeResult, err := rt.Probe(requiredFlags)
-	if err != nil {
-		// Runtime not found — offer to install it
-		fmt.Fprintf(os.Stderr, "\n\033[31m✗  %s not found\033[0m\n", rt.Name())
-		if rt.OfferInstall() {
-			// Re-probe after a successful install
-			probeResult, err = rt.Probe(requiredFlags)
-			if err != nil {
-				return fmt.Errorf("%s still unavailable after install: %w", rt.Name(), err)
+	var probeResult *runtime.ProbeResult
+	if runDryRun {
+		probeResult = &runtime.ProbeResult{
+			BinaryPath: rt.Name(),
+		}
+	} else {
+		printStep(fmt.Sprintf("Checking %s capabilities", rt.Name()))
+		requiredFlags := r.RequiredFlags()
+		var err error
+		probeResult, err = rt.Probe(requiredFlags)
+		if err != nil {
+			// Runtime not found — offer to install it
+			fmt.Fprintf(os.Stderr, "\n\033[31m✗  %s not found\033[0m\n", rt.Name())
+			if rt.OfferInstall() {
+				// Re-probe after a successful install
+				probeResult, err = rt.Probe(requiredFlags)
+				if err != nil {
+					return fmt.Errorf("%s still unavailable after install: %w", rt.Name(), err)
+				}
+			} else {
+				return fmt.Errorf("%s is required but not installed", rt.Name())
 			}
-		} else {
-			return fmt.Errorf("%s is required but not installed", rt.Name())
 		}
-	}
-	if len(probeResult.Missing) > 0 {
-		fmt.Fprintf(os.Stderr, "\n\033[31m✗  Incompatible %s binary:\033[0m\n", rt.Name())
-		fmt.Fprintf(os.Stderr, "   Missing flags required by this recipe:\n")
-		for _, f := range probeResult.Missing {
-			fmt.Fprintf(os.Stderr, "     %s\n", f)
+		if len(probeResult.Missing) > 0 {
+			fmt.Fprintf(os.Stderr, "\n\033[31m✗  Incompatible %s binary:\033[0m\n", rt.Name())
+			fmt.Fprintf(os.Stderr, "   Missing flags required by this recipe:\n")
+			for _, f := range probeResult.Missing {
+				fmt.Fprintf(os.Stderr, "     %s\n", f)
+			}
+			fmt.Fprintf(os.Stderr, "\n   Update %s to a newer build.\n", rt.Name())
+			fmt.Fprintf(os.Stderr, "   Install guide: https://bloc-theta.vercel.app/install\n\n")
+			return fmt.Errorf("%s is missing required capabilities", rt.Name())
 		}
-		fmt.Fprintf(os.Stderr, "\n   Update %s to a newer build.\n", rt.Name())
-		fmt.Fprintf(os.Stderr, "   Install guide: https://bloc-theta.vercel.app/install\n\n")
-		return fmt.Errorf("%s is missing required capabilities", rt.Name())
+		fmt.Printf("  \033[32m✓\033[0m  %s — all required flags supported\n", probeResult.BinaryPath)
 	}
-	fmt.Printf("  \033[32m✓\033[0m  %s — all required flags supported\n", probeResult.BinaryPath)
 
 	// ── Context for all long-running operations (downloads + server) ────────────
 	ctx, cancel := context.WithCancel(context.Background())
@@ -223,77 +233,87 @@ func runRecipe(cmd *cobra.Command, args []string) error {
 	var modelPath string
 
 	if r.Model.HFRepo != "" {
-		bw := bufio.NewWriterSize(os.Stdout, 1024)
 		if dm.IsRepoCached(r.Model.HFRepo, "") {
 			modelPath = dm.RepoPath(r.Model.HFRepo, "main")
 			fmt.Printf("  \033[32m✓\033[0m  Already cached: %s\n", modelPath)
 		} else {
-			if err := checkDiskSpace(cacheDir, r.Model.SizeGB); err != nil {
-				return err
+			if runDryRun {
+				modelPath = dm.RepoPath(r.Model.HFRepo, "main")
+				fmt.Printf("  \033[32m✓\033[0m  [Dry Run] Simulated model cache path: %s\n", modelPath)
+			} else {
+				if err := checkDiskSpace(cacheDir, r.Model.SizeGB); err != nil {
+					return err
+				}
+				fmt.Printf("  Downloading HF repo %s (%.1f GB)...\n", r.Model.HFRepo, r.Model.SizeGB)
+				bw := bufio.NewWriterSize(os.Stdout, 1024)
+				modelPath, err = dm.EnsureRepoDownloaded(
+					ctx,
+					r.Model.HFRepo,
+					"", // default revision "main"
+					func(downloaded, total int64, speedMBs float64) {
+						pct := float64(0)
+						if total > 0 {
+							pct = float64(downloaded) / float64(total) * 100
+						}
+						bar := progressBar(int(pct), 30)
+						_, _ = fmt.Fprintf(bw, "\r  %s %.1f/%.1f GB  [%s] %.0f%% @ %.1f MB/s",
+							r.Model.HFRepo,
+							float64(downloaded)/1e9,
+							float64(total)/1e9,
+							bar,
+							pct,
+							speedMBs,
+						)
+						_ = bw.Flush()
+					},
+				)
+				fmt.Println() // newline after progress bar
+				if err != nil {
+					return fmt.Errorf("repo download failed: %w", err)
+				}
+				fmt.Printf("  \033[32m✓\033[0m  Saved to %s\n", modelPath)
 			}
-			fmt.Printf("  Downloading HF repo %s (%.1f GB)...\n", r.Model.HFRepo, r.Model.SizeGB)
-			modelPath, err = dm.EnsureRepoDownloaded(
-				ctx,
-				r.Model.HFRepo,
-				"", // default revision "main"
-				func(downloaded, total int64, speedMBs float64) {
-					pct := float64(0)
-					if total > 0 {
-						pct = float64(downloaded) / float64(total) * 100
-					}
-					bar := progressBar(int(pct), 30)
-					_, _ = fmt.Fprintf(bw, "\r  %s %.1f/%.1f GB  [%s] %.0f%% @ %.1f MB/s",
-						r.Model.HFRepo,
-						float64(downloaded)/1e9,
-						float64(total)/1e9,
-						bar,
-						pct,
-						speedMBs,
-					)
-					_ = bw.Flush()
-				},
-			)
-			fmt.Println() // newline after progress bar
-			if err != nil {
-				return fmt.Errorf("repo download failed: %w", err)
-			}
-			fmt.Printf("  \033[32m✓\033[0m  Saved to %s\n", modelPath)
 		}
 	} else {
 		cached, _ := dm.IsAlreadyCached(r.Model.File, r.Model.SHA256)
-		bw := bufio.NewWriterSize(os.Stdout, 1024)
 		if cached {
 			modelPath = dm.ModelPath(r.Model.File)
 			fmt.Printf("  \033[32m✓\033[0m  Already cached: %s\n", modelPath)
 		} else {
-			if err := checkDiskSpace(cacheDir, r.Model.SizeGB); err != nil {
-				return err
+			if runDryRun {
+				modelPath = dm.ModelPath(r.Model.File)
+				fmt.Printf("  \033[32m✓\033[0m  [Dry Run] Simulated model cache path: %s\n", modelPath)
+			} else {
+				if err := checkDiskSpace(cacheDir, r.Model.SizeGB); err != nil {
+					return err
+				}
+				fmt.Printf("  Downloading %s (%.1f GB)...\n", r.Model.File, r.Model.SizeGB)
+				bw := bufio.NewWriterSize(os.Stdout, 1024)
+				modelPath, err = dm.EnsureDownloaded(
+					ctx,
+					r.Model.File,
+					r.Model.DownloadURL,
+					r.Model.SHA256,
+					r.Model.SizeGB,
+					func(downloaded, total int64, speedMBs float64) {
+						pct := float64(downloaded) / float64(total) * 100
+						bar := progressBar(int(pct), 30)
+						_, _ = fmt.Fprintf(bw, "\r  %s %.1f/%.1f GB  [%s] %.0f%% @ %.1f MB/s",
+							r.Model.File,
+							float64(downloaded)/1e9,
+							float64(total)/1e9,
+							bar,
+							pct,
+							speedMBs,
+						)
+					},
+				)
+				fmt.Println() // newline after progress bar
+				if err != nil {
+					return fmt.Errorf("download failed: %w", err)
+				}
+				fmt.Printf("  \033[32m✓\033[0m  Saved to %s\n", modelPath)
 			}
-			fmt.Printf("  Downloading %s (%.1f GB)...\n", r.Model.File, r.Model.SizeGB)
-			modelPath, err = dm.EnsureDownloaded(
-				ctx,
-				r.Model.File,
-				r.Model.DownloadURL,
-				r.Model.SHA256,
-				r.Model.SizeGB,
-				func(downloaded, total int64, speedMBs float64) {
-					pct := float64(downloaded) / float64(total) * 100
-					bar := progressBar(int(pct), 30)
-					_, _ = fmt.Fprintf(bw, "\r  %s %.1f/%.1f GB  [%s] %.0f%% @ %.1f MB/s",
-						r.Model.File,
-						float64(downloaded)/1e9,
-						float64(total)/1e9,
-						bar,
-						pct,
-						speedMBs,
-					)
-				},
-			)
-			fmt.Println() // newline after progress bar
-			if err != nil {
-				return fmt.Errorf("download failed: %w", err)
-			}
-			fmt.Printf("  \033[32m✓\033[0m  Saved to %s\n", modelPath)
 		}
 	}
 
@@ -309,12 +329,16 @@ func runRecipe(cmd *cobra.Command, args []string) error {
 		for _, c := range r.PreRun.Commands {
 			fmt.Printf("    \033[33m%s\033[0m\n", c)
 		}
-		if !confirm("  Allow? [Y/n]: ") {
-			return fmt.Errorf("pre-run commands rejected by user")
-		}
-		for _, c := range r.PreRun.Commands {
-			if err := runShellCommand(c, r.PreRun.Env); err != nil {
-				return fmt.Errorf("pre-run command failed: %w", err)
+		if runDryRun {
+			fmt.Println("  [Dry Run] Skipping pre-run command execution.")
+		} else {
+			if !confirm("  Allow? [Y/n]: ") {
+				return fmt.Errorf("pre-run commands rejected by user")
+			}
+			for _, c := range r.PreRun.Commands {
+				if err := runShellCommand(c, r.PreRun.Env); err != nil {
+					return fmt.Errorf("pre-run command failed: %w", err)
+				}
 			}
 		}
 	}
@@ -333,7 +357,9 @@ func runRecipe(cmd *cobra.Command, args []string) error {
 		fmt.Println("  Only proceed if you trust the model author and have reviewed the code at:")
 		fmt.Printf("  \033[36mhttps://huggingface.co/%s/tree/main\033[0m\n", r.Model.HFRepo)
 		fmt.Println()
-		if !confirmYesExplicit("  Allow execution of custom model code? [y/N]: ") {
+		if runDryRun {
+			fmt.Println("  [Dry Run] Skipping trust_remote_code confirmation.")
+		} else if !confirmYesExplicit("  Allow execution of custom model code? [y/N]: ") {
 			return fmt.Errorf("trust_remote_code rejected by user — aborting")
 		}
 	}
@@ -346,6 +372,17 @@ func runRecipe(cmd *cobra.Command, args []string) error {
 		if r.EngineConfig.TrustRemoteCode {
 			flags = append(flags, "--trust-remote-code")
 		}
+	case "sglang":
+		flags = r.BuildSGLangFlags()
+		// Inject CUDA device pinning into the env map so the Docker runtime
+		// can pass it as -e CUDA_VISIBLE_DEVICES=... to docker run.
+		// This is the canonical place to declare GPU bus IDs for SGLang.
+		if devs := r.EngineConfig.SGLangCUDAVisibleDevices; devs != "" {
+			if r.PreRun.Env == nil {
+				r.PreRun.Env = make(map[string]string)
+			}
+			r.PreRun.Env["CUDA_VISIBLE_DEVICES"] = devs
+		}
 	default:
 		flags = r.BuildFlags()
 	}
@@ -356,6 +393,11 @@ func runRecipe(cmd *cobra.Command, args []string) error {
 		case "vllm":
 			fmt.Printf("python3 -m vllm.entrypoints.openai.api_server \\\n")
 			fmt.Printf("  --model %s \\\n", modelPath)
+		case "sglang":
+			fmt.Printf("python3 -m sglang.launch_server \\\n")
+			fmt.Printf("  --model-path %s \\\n", modelPath)
+			fmt.Printf("  --host 0.0.0.0 \\\n")
+			fmt.Printf("  --port %d \\\n", r.EngineConfig.Port)
 		default:
 			fmt.Printf("%s -m %s \\\n", rt.Name(), modelPath)
 		}

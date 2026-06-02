@@ -22,6 +22,7 @@
   "--log-file",
   "--logdir",
   "--model",
+  "--model-path",
   "--port",
   "--port-ssl",
   "--prompt-file",

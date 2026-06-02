@@ -140,6 +140,29 @@ type EngineConfig struct {
 	SpeculativeModel     string `yaml:"speculative_model"`      // --speculative-model
 	NumSpeculativeTokens int    `yaml:"num_speculative_tokens"` // --num-speculative-tokens
 
+	// ── SGLang-specific fields ───────────────────────────────────────────────
+	// These fields are validated to be zero/empty on non-sglang recipes.
+	// All YAML keys are prefixed "sglang_" to prevent silent cross-engine
+	// misconfiguration (SGLang and vLLM share concepts — e.g. tensor parallelism
+	// — but use different flag names and semantics).
+
+	SGLangTensorParallelSize int     `yaml:"sglang_tensor_parallel_size"` // --tp-size
+	SGLangContextLength      int     `yaml:"sglang_context_length"`       // --context-length
+	SGLangMemFractionStatic  float64 `yaml:"sglang_mem_fraction_static"`  // --mem-fraction-static
+	SGLangMaxRunningRequests int     `yaml:"sglang_max_running_requests"` // --max-running-requests
+	SGLangChunkedPrefillSize int     `yaml:"sglang_chunked_prefill_size"` // --chunked-prefill-size
+	SGLangMaxPrefillTokens   int     `yaml:"sglang_max_prefill_tokens"`   // --max-prefill-tokens
+	SGLangCudaGraphMaxBS     int     `yaml:"sglang_cuda_graph_max_bs"`    // --cuda-graph-max-bs
+	SGLangQuantization       string  `yaml:"sglang_quantization"`         // --quantization
+	SGLangKVCacheDType       string  `yaml:"sglang_kv_cache_dtype"`       // --kv-cache-dtype
+	SGLangReasoningParser    string  `yaml:"sglang_reasoning_parser"`     // --reasoning-parser
+	SGLangToolCallParser     string  `yaml:"sglang_tool_call_parser"`     // --tool-call-parser
+	SGLangEnableMultimodal   bool    `yaml:"sglang_enable_multimodal"`    // --enable-multimodal
+	// SGLangCUDAVisibleDevices pins specific GPU bus IDs via the CUDA_VISIBLE_DEVICES
+	// environment variable injected into the Docker container by the runtime.
+	// Example: "0,2,3,4" (0xSero's verified 4-GPU host).
+	SGLangCUDAVisibleDevices string `yaml:"sglang_cuda_visible_devices"`
+
 	// F-03: extra_args escape hatch — validated against an allowlist before use.
 	// Recipe authors may add flags not yet modelled above, but only from the
 	// approved list below. Unknown flags are rejected at parse time.
@@ -267,14 +290,31 @@ func parse(data []byte, isLocal bool) (*Recipe, error) {
 }
 
 // validateEngineConfig enforces cross-engine config constraints (Fix #3).
-// Prevents recipe authors from mixing llama.cpp-only and vLLM-only fields,
-// which would be silently ignored and cause confusing behaviour.
+// Prevents recipe authors from mixing llama.cpp-only, vLLM-only, or
+// SGLang-only fields, which would be silently ignored and cause confusing
+// behaviour.
 func validateEngineConfig(r *Recipe) error {
 	engine := r.Engine.Name
 	if engine == "" {
 		engine = "llama.cpp" // zero-value default
 	}
 	cfg := r.EngineConfig
+
+	// hasSGLangFields returns true when any sglang_* field is non-zero.
+	// Used by non-sglang cases to catch copy-paste mistakes early.
+	hasSGLangFields := cfg.SGLangTensorParallelSize != 0 ||
+		cfg.SGLangContextLength != 0 ||
+		cfg.SGLangMemFractionStatic != 0 ||
+		cfg.SGLangMaxRunningRequests != 0 ||
+		cfg.SGLangChunkedPrefillSize != 0 ||
+		cfg.SGLangMaxPrefillTokens != 0 ||
+		cfg.SGLangCudaGraphMaxBS != 0 ||
+		cfg.SGLangQuantization != "" ||
+		cfg.SGLangKVCacheDType != "" ||
+		cfg.SGLangReasoningParser != "" ||
+		cfg.SGLangToolCallParser != "" ||
+		cfg.SGLangEnableMultimodal ||
+		cfg.SGLangCUDAVisibleDevices != ""
 
 	switch engine {
 	case "llama.cpp", "llama-cpp":
@@ -288,6 +328,11 @@ func validateEngineConfig(r *Recipe) error {
 		if cfg.MaxModelLen != 0 {
 			return fmt.Errorf("engine_config.max_model_len is a vLLM-only field and cannot be used with engine %q", engine)
 		}
+		// SGLang-only fields must not be set on llama.cpp recipes
+		if hasSGLangFields {
+			return fmt.Errorf("sglang_* fields cannot be used with engine %q — they are SGLang-only", engine)
+		}
+
 	case "vllm":
 		// llama.cpp-only fields must not be set on vLLM recipes
 		if cfg.GPULayers != 0 {
@@ -301,6 +346,47 @@ func validateEngineConfig(r *Recipe) error {
 		}
 		if cfg.UBatchSize != 0 {
 			return fmt.Errorf("engine_config.ubatch_size (-ub) is a llama.cpp-only field and cannot be used with engine %q", engine)
+		}
+		// SGLang-only fields must not be set on vLLM recipes
+		if hasSGLangFields {
+			return fmt.Errorf("sglang_* fields cannot be used with engine %q — they are SGLang-only", engine)
+		}
+
+	case "sglang":
+		// llama.cpp-only fields must not be set on sglang recipes
+		if cfg.GPULayers != 0 {
+			return fmt.Errorf("engine_config.gpu_layers (-ngl) is a llama.cpp-only field and cannot be used with engine %q", engine)
+		}
+		if cfg.NCPUMoE != 0 {
+			return fmt.Errorf("engine_config.n_cpu_moe is a llama.cpp-only field and cannot be used with engine %q", engine)
+		}
+		if cfg.BatchSize != 0 {
+			return fmt.Errorf("engine_config.batch_size (-b) is a llama.cpp-only field and cannot be used with engine %q", engine)
+		}
+		if cfg.UBatchSize != 0 {
+			return fmt.Errorf("engine_config.ubatch_size (-ub) is a llama.cpp-only field and cannot be used with engine %q", engine)
+		}
+		// vLLM-only fields must not be set on sglang recipes — use the sglang_* equivalents instead
+		if cfg.TensorParallelSize != 0 {
+			return fmt.Errorf("engine_config.tensor_parallel_size is a vLLM-only field; use sglang_tensor_parallel_size for engine %q", engine)
+		}
+		if cfg.GPUMemoryUtilization != 0 {
+			return fmt.Errorf("engine_config.gpu_memory_utilization is a vLLM-only field; use sglang_mem_fraction_static for engine %q", engine)
+		}
+		if cfg.MaxModelLen != 0 {
+			return fmt.Errorf("engine_config.max_model_len is a vLLM-only field; use sglang_context_length for engine %q", engine)
+		}
+		if cfg.KVCacheDType != "" {
+			return fmt.Errorf("engine_config.kv_cache_dtype is a vLLM-only field; use sglang_kv_cache_dtype for engine %q", engine)
+		}
+		if cfg.QuantizationType != "" {
+			return fmt.Errorf("engine_config.quantization is a vLLM-only field; use sglang_quantization for engine %q", engine)
+		}
+		if cfg.ReasoningParser != "" {
+			return fmt.Errorf("engine_config.reasoning_parser is a vLLM-only field; use sglang_reasoning_parser for engine %q", engine)
+		}
+		if cfg.ToolCallParser != "" {
+			return fmt.Errorf("engine_config.tool_call_parser is a vLLM-only field; use sglang_tool_call_parser for engine %q", engine)
 		}
 	}
 	return nil
@@ -506,3 +592,66 @@ func (r *Recipe) BuildVLLMFlags() []string {
 	return flags
 }
 
+// BuildSGLangFlags converts SGLang-specific EngineConfig fields into the
+// ordered list of flags for `python3 -m sglang.launch_server`.
+//
+// The model path is injected by SGLangDockerRuntime.Run as --model-path.
+// --host and --port are also injected by the runtime, not here, so that the
+// runtime always controls the network binding.
+// SGLangCUDAVisibleDevices is not emitted as a flag — it is injected into the
+// container environment as CUDA_VISIBLE_DEVICES by the runtime.
+func (r *Recipe) BuildSGLangFlags() []string {
+	cfg := r.EngineConfig
+	var flags []string
+
+	add := func(flag, value string) {
+		if value != "" {
+			flags = append(flags, flag, value)
+		}
+	}
+	addInt := func(flag string, value int) {
+		if value != 0 {
+			flags = append(flags, flag, fmt.Sprintf("%d", value))
+		}
+	}
+	addFloat := func(flag string, value float64) {
+		if value != 0 {
+			flags = append(flags, flag, fmt.Sprintf("%.2f", value))
+		}
+	}
+	addBool := func(flag string, value bool) {
+		if value {
+			flags = append(flags, flag)
+		}
+	}
+
+	// ── Parallelism ───────────────────────────────────────────────────────────
+	addInt("--tp-size", cfg.SGLangTensorParallelSize)
+
+	// ── Context & memory ──────────────────────────────────────────────────────
+	addInt("--context-length", cfg.SGLangContextLength)
+	addFloat("--mem-fraction-static", cfg.SGLangMemFractionStatic)
+
+	// ── Concurrency & prefill ─────────────────────────────────────────────────
+	addInt("--max-running-requests", cfg.SGLangMaxRunningRequests)
+	addInt("--chunked-prefill-size", cfg.SGLangChunkedPrefillSize)
+	addInt("--max-prefill-tokens", cfg.SGLangMaxPrefillTokens)
+
+	// ── CUDA graph ────────────────────────────────────────────────────────────
+	addInt("--cuda-graph-max-bs", cfg.SGLangCudaGraphMaxBS)
+
+	// ── Quantization & KV cache ───────────────────────────────────────────────
+	add("--quantization", cfg.SGLangQuantization)
+	add("--kv-cache-dtype", cfg.SGLangKVCacheDType)
+
+	// ── Parsers & multimodal ──────────────────────────────────────────────────
+	add("--reasoning-parser", cfg.SGLangReasoningParser)
+	add("--tool-call-parser", cfg.SGLangToolCallParser)
+	addBool("--enable-multimodal", cfg.SGLangEnableMultimodal)
+
+	// ── extra_args passthrough ────────────────────────────────────────────────
+	// Already validated against the allowlist at parse time (F-03).
+	flags = append(flags, cfg.ExtraArgs...)
+
+	return flags
+}
