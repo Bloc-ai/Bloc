@@ -1,6 +1,7 @@
 // Server Component — no "use client" directive
 import ShortcutButton from "@/components/ShortcutButton";
 import TerminalCommand from "@/components/TerminalCommand";
+import DynamicTerminalCommand from "@/components/landing/DynamicTerminalCommand";
 import FaqAccordion from "@/components/FaqAccordion";
 import Link from "next/link";
 import { AsciiCanvas } from "@/components/AsciiCanvas";
@@ -9,7 +10,29 @@ import { Cpu, Box, Code2, Layers, Activity, FileCode2, Shield } from "lucide-rea
 import TerminalDemo from "@/components/landing/TerminalDemo";
 import BuildShareRunSection from "@/components/landing/BuildShareRunSection";
 import CommunityCuboids from "@/components/landing/CommunityCuboids";
+import { getSupabaseAnon } from "@/lib/supabase-server";
 import type { Metadata } from "next";
+
+async function getHeroRecipes(): Promise<string[]> {
+  const supabase = getSupabaseAnon();
+  if (!supabase) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from("recipes")
+      .select("name, creator")
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    if (error) throw error;
+    if (!data) return [];
+
+    return data.map((row: any) => `bloc run ${row.creator}/${row.name}`);
+  } catch (e) {
+    console.error("Error loading recipes for hero page:", e);
+    return [];
+  }
+}
 
 export const metadata: Metadata = {
   title: "Bloc Hub - Dynamic Local AI Model Registry & Deployments",
@@ -71,7 +94,8 @@ const bentoRow2 = [
   }
 ];
 
-export default function Home() {
+export default async function Home() {
+  const recipes = await getHeroRecipes();
 
   return (
     <div className="max-w-6xl w-full mx-auto px-4 pb-24">
@@ -148,7 +172,7 @@ export default function Home() {
 
             {/* Terminal Command Box */}
             <div className="mt-8">
-              <TerminalCommand command="bloc deploy arnav/qwen-3.5-9b-super" />
+              <DynamicTerminalCommand commands={recipes.length > 0 ? recipes : undefined} />
             </div>
           </div>
 
