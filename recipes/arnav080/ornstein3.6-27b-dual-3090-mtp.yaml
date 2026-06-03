@@ -1,0 +1,143 @@
+schema: "bloc/v1"
+extends: null
+
+# ─── LAYER 1: Registry Metadata ──────────────────────────────────────────────
+# The Hub reads and indexes everything in this section.
+# Powers the registry card, search, and filter UI.
+
+metadata:
+  name: "ornstein3.6-27b-dual-3090-mtp"
+  description: >
+    Dual RTX 3090 setup running Ornstein3.6-27B dense model with Tensor Parallelism,
+    65k context, FP16 KV cache, and multi-speculative decoding (MTP + ngram-mod + ngram-map).
+  tags:
+    - "cuda"
+    - "48gb"
+    - "dual-gpu"
+    - "tensor-parallel"
+    - "speculative-decoding"
+    - "reasoning"
+  author_notes: |
+    Benchmarked by a local AI researcher on a dual RTX 3090 setup (no NVLINK required, but benefits from fast PCIe lanes):
+
+    Key Highlights:
+    - Tensor Parallelism (`--split-mode tensor`) is enabled, yielding a major performance boost (74 tokens/second on a single slot vs. 55 before). Note: You lose the ability to quantize the KV cache with tensor parallelism.
+    - FP16 KV cache at 65k context consumes ~17 GB VRAM per GPU (34 GB total), leaving ~14 GB headroom on a dual 3090 system to fit multi-modal models (e.g., Gemma-E4B or Qwen3.5-9B).
+    - Prefill takes a moment initially but is extremely snappy on subsequent queries.
+    - Serves 2 parallel request slots (`--parallel 2`), maintaining a steady ~33 tokens/second per slot under load—ideal for multi-user small business scenarios.
+    - Employs a complex multi-speculative setup (MTP + ngram-mod + ngram-map-k4v) for maximum generation speeds.
+
+model:
+  source: "huggingface:saber-labs/Ornstein3.6-27B-MTP-NSC-ACE-SABER"
+  gguf_repo: "huggingface:saber-labs/Ornstein3.6-27B-MTP-NSC-ACE-SABER-GGUF"
+  file: "Ornstein3.6-27B-MTP-NSC-ACE-SABER-Q4_K_M-MTP.gguf"
+  download_url: "https://huggingface.co/saber-labs/Ornstein3.6-27B-MTP-NSC-ACE-SABER-GGUF/resolve/main/Ornstein3.6-27B-MTP-NSC-ACE-SABER-Q4_K_M-MTP.gguf"
+  quantization: "Q4_K_M"
+  size_gb: 17.5
+  parameters: "27B"
+  architecture: "Dense"
+
+engine:
+  name: "llama.cpp"
+  variant: null
+  tested_commit: "b5350"
+
+hardware:
+  min_vram: "48GB"          # Combined across dual RTX 3090s
+  target_platform: "cuda"
+  gpu_count: 2              # Dual GPU
+  recommended_ram: "64GB"
+
+# ─── LAYER 2: Engine Config ───────────────────────────────────────────────────
+# The CLI translates these fields into llama-server flags and executes them.
+# Every field is explicit — no reliance on llama.cpp defaults.
+
+engine_config:
+
+  # [ Context & Memory ]
+  ctx_size: 65536                # -c  65k context length
+  flash_attn: true              # -fa Reduce memory overhead linearly with context
+  mlock: false                  # --mlock Prevent OS from swapping weights to disk
+  mmap: false                    # mmap disabled (--no-mmap)
+
+  # [ GPU Offloading ]
+  gpu_layers: 999               # -ngl offload all layers to GPU
+  split_mode: "tensor"          # --split-mode tensor (Tensor Parallelism)
+  tensor_split: null
+  main_gpu: 0                   # -mg
+
+  # [ Mixture of Experts (MoE) ]
+  n_cpu_moe: null
+
+  # [ Attention & Batching ]
+  batch_size: 512
+  ubatch_size: 256
+
+  # [ KV Cache Quantization ]
+  cache_type_k: "f16"           # -ctk FP16 key cache (required for Tensor Parallelism)
+  cache_type_v: "f16"           # -ctv FP16 value cache
+
+  # [ Speculative Decoding ]
+  # We expose the main draft-mtp here, and auxiliary spec configurations in extra_args.
+  spec_type: "draft-mtp"        # --spec-type draft-mtp
+  spec_draft_model: null
+  spec_draft_n_max: 3           # --spec-draft-n-max 3
+  spec_draft_p_min: 0.0         # --spec-draft-p-min 0.0
+
+  # [ Threading & Server ]
+  threads: 8                    # -t CPU threads to allocate
+  numa: null
+  host: "127.0.0.1"             # --host
+  port: 8080                    # --port
+  n_parallel: 2                 # --parallel 2 (dual slots)
+  jinja: true                   # --jinja
+
+  # [ Escape Hatch ]
+  # Verbatim flags for multiple speculative decoding types, sampling settings, and reasoning logic.
+  extra_args:
+    - "--alias"
+    - "Ornstein3.6-27B-MTP-NSC-ACE-SABER"
+    # Secondary speculative decoding: ngram-mod
+    - "--spec-type"
+    - "ngram-mod"
+    - "--spec-ngram-mod-n-match"
+    - "16"
+    - "--spec-ngram-mod-n-min"
+    - "24"
+    - "--spec-ngram-mod-n-max"
+    - "48"
+    # Tertiary speculative decoding: ngram-map-k4v
+    - "--spec-type"
+    - "ngram-map-k4v"
+    - "--spec-ngram-map-k4v-size-n"
+    - "12"
+    - "--spec-ngram-map-k4v-size-m"
+    - "48"
+    - "--spec-ngram-map-k4v-min-hits"
+    - "1"
+    # Continuous batching & execution controls
+    - "--cont-batching"
+    # Sampler settings
+    - "--temp"
+    - "0.7"
+    - "--top-p"
+    - "0.8"
+    - "--top-k"
+    - "20"
+    - "--presence-penalty"
+    - "1.5"
+    - "--min-p"
+    - "0.00"
+    # Reasoning parser & template kwargs
+    - "--reasoning"
+    - "on"
+    - "--chat-template-kwargs"
+    - '{"preserve_thinking": true}'
+
+# ─── LAYER 3: Pre-Run System Setup ───────────────────────────────────────────
+# Runs before llama-server starts. NOT llama.cpp flags.
+
+pre_run:
+  env:
+    CUDA_VISIBLE_DEVICES: "0,1"   # Expose both GPUs to ensure Tensor Parallelism works correctly
+  commands: []

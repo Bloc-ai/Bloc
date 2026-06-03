@@ -21,6 +21,9 @@ import (
 	"github.com/bloc-org/bloc/internal/runtime"
 	"github.com/bloc-org/bloc/internal/telemetry"
 	"github.com/spf13/cobra"
+	
+	"dashboard/tui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // F-02: hubAPIBase is resolved once at startup.
@@ -94,11 +97,17 @@ func init() {
 }
 
 func isLocalRecipe(path string) bool {
+	// SEC-10: only treat as a local recipe if it has a YAML extension OR is an
+	// explicit file path (contains a path separator). Prevents any arbitrary
+	// existing filesystem path from being silently loaded as a recipe.
 	if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
 		return true
 	}
-	if _, err := os.Stat(path); err == nil {
-		return true
+	// Accept explicit relative/absolute paths (e.g. ./my-recipe or /home/user/recipe)
+	if strings.Contains(path, "/") || strings.Contains(path, "\\") {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
 	}
 	return false
 }
@@ -418,23 +427,96 @@ func runRecipe(cmd *cobra.Command, args []string) error {
 
 	printStep(fmt.Sprintf("Launching %s", rt.Name()))
 
+	// SEC-6: use os.CreateTemp to avoid predictable /tmp path (symlink attack)
+	// RACE-4: do NOT defer logFile.Close() here — closed explicitly after engineDone
+	logFile, err := os.CreateTemp("", "bloc-engine-*.log")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Could not create log file: %v\n", err)
+	}
+
 	runCfg := runtime.RunConfig{
 		ModelPath: modelPath,
 		Flags:     flags,
 		EnvVars:   r.PreRun.Env,
 		Port:      r.EngineConfig.Port,
 		Recipe:    r,
+		Silent:    true, // Silence engine logs to prevent TUI corruption
+		LogWriter: logFile,
 	}
 	if modelPath != "" {
 		now := time.Now()
 		_ = os.Chtimes(modelPath, now, now)
 	}
-	stats, err := rt.Run(ctx, runCfg)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "\033[31m✗  %s exited with error: %v\033[0m\n", rt.Name(), err)
+
+	// RACE-1: use a typed result channel instead of bare variables shared across
+	// goroutine boundaries. Reading stats/runErr without synchronization is a
+	// data race detectable by `go test -race`.
+	type engineResult struct {
+		stats  *runtime.Stats
+		runErr error
+	}
+	engineDone := make(chan engineResult, 1)
+
+	// RACE-4: do NOT defer logFile.Close() here — the engine goroutine writes
+	// to logFile via runCfg.LogWriter. We must wait for the goroutine to exit
+	// (signalled by engineDone) before closing the file.
+	// Start engine in background
+	go func() {
+		s, e := rt.Run(ctx, runCfg)
+		if e != nil {
+			fmt.Fprintf(os.Stderr, "\033[31m✗  %s exited with error: %v\033[0m\n", rt.Name(), e)
+		}
+		engineDone <- engineResult{stats: s, runErr: e}
+	}()
+
+	// Launch TUI
+	modelName := r.Metadata.Name
+	if modelName == "" {
+		if r.Model.HFRepo != "" {
+			modelName = r.Model.HFRepo
+		} else {
+			modelName = r.Model.File
+		}
+	}
+	
+	hwString := "CPU"
+	if hw != nil {
+		switch hw.Platform {
+		case "metal":
+			hwString = "Metal"
+		case "cuda":
+			hwString = "CUDA"
+		case "rocm":
+			hwString = "ROCm"
+		}
 	}
 
-	// ── Step 9: Shutdown + telemetry ──────────────────────────────────────────
+	port := r.EngineConfig.Port
+	if port == 0 {
+		port = 8080
+	}
+
+	logPath := ""
+	if logFile != nil {
+		logPath = logFile.Name()
+	}
+	
+	p := tea.NewProgram(tui.NewApp(Version, logPath, port, rt.Name(), modelName, hwString), tea.WithAltScreen(), tea.WithMouseCellMotion())
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error starting dashboard: %v\n", err)
+	}
+	
+	// Graceful shutdown of the background engine when TUI exits (Ctrl+C)
+	cancel()
+
+	// RACE-1+RACE-4: block until the engine goroutine exits so we can safely
+	// read stats and close the log file without a data race.
+	result := <-engineDone
+	if logFile != nil {
+		logFile.Close()
+	}
+	stats := result.stats
+
 	if !runNoTelemetry && !isLocal && stats != nil {
 		t, _ := config.LoadTelemetry()
 		if t != nil && t.Enabled {
@@ -560,10 +642,20 @@ func runShellCommand(command string, env map[string]string) error {
 	cmd := exec.Command("sh", "-c", command)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = os.Environ()
-	for k, v := range env {
-		cmd.Env = append(cmd.Env, k+"="+v)
+	// SEC-1: build a minimal, clean environment instead of inheriting os.Environ().
+	// Passing the full environment allows $BASH_ENV / $ENV / $LD_PRELOAD to run
+	// attacker-controlled code before the command even executes.
+	safeEnv := []string{
+		"HOME=" + os.Getenv("HOME"),
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+		"USER=" + os.Getenv("USER"),
+		"LANG=" + os.Getenv("LANG"),
+		"TERM=" + os.Getenv("TERM"),
 	}
+	for k, v := range env {
+		safeEnv = append(safeEnv, k+"="+v)
+	}
+	cmd.Env = safeEnv
 	return cmd.Run()
 }
 

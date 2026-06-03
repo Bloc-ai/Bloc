@@ -314,8 +314,9 @@ func verifyHFToken(token string) string {
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("User-Agent", "bloc-cli/"+Version)
 
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
+	// SEC-7: use apiClient (has proper timeout + TLS verification) instead of a
+	// bare unpinned http.Client, which could expose the HF token to MITM.
+	resp, err := apiClient.Do(req)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		if resp != nil {
 			resp.Body.Close()

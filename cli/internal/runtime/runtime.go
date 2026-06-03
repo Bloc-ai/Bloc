@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"io"
 	"sync"
 	"time"
 
@@ -70,6 +71,12 @@ type RunConfig struct {
 	// beyond model path and flags (e.g. DockerVLLMRuntime reads Metadata.Name
 	// to build the container slug). May be nil for runtimes that don't need it.
 	Recipe *recipe.Recipe
+
+	// Silent prevents the engine from writing directly to stdout/stderr
+	Silent bool
+
+	// LogWriter is an optional destination for engine logs
+	LogWriter io.Writer
 }
 
 // Stats collects runtime performance metrics captured from engine log output.

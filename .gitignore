@@ -100,3 +100,6 @@ notes/
 # Go binaries
 cli/bloc
 
+cli/.bloc-memory.md
+cli/bloc-cli
+scratch/

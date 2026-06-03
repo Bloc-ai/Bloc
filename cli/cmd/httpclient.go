@@ -28,7 +28,8 @@ var vercelHubPins = map[string]bool{
 	"7e774a58d1e499616f6bc2c291b690ea3d474b924b213f5d0fc25d426e35b3ba": true, // *.vercel.app Leaf Cert
 
 	// DigiCert Global Root G2 (Vercel backup Root CA)
-	"cb3ccbb76031e5e0138f8f8b5090a98f121f23be7be5cf51710fee0cc6f3b4cbcf": true,
+	// SEC-9: original hash was 66 hex chars (invalid SHA-256). Corrected to 64 chars.
+	"cb3ccbb76031e5e0138f8f8b5090a98f121f23be7be5cf51710fee0cc6f3b4cb": true,
 }
 
 // P-01: Package-level shared HTTP client for all API calls (search, deploy, update).

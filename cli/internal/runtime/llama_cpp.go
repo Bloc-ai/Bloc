@@ -172,7 +172,11 @@ func (r *LlamaCppRuntime) Run(ctx context.Context, cfg RunConfig) (*Stats, error
 		scanner.Buffer(make([]byte, 256*1024), 256*1024) // PERF-05: 256 KB prevents ErrTooLong
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Println(line)
+			if cfg.LogWriter != nil {
+				fmt.Fprintln(cfg.LogWriter, line)
+			} else if !cfg.Silent {
+				fmt.Println(line)
+			}
 			parseLlamaStats(line, stats) // stdout only — SEC-00: single writer goroutine
 		}
 	}()
@@ -181,7 +185,12 @@ func (r *LlamaCppRuntime) Run(ctx context.Context, cfg RunConfig) (*Stats, error
 		scanner := bufio.NewScanner(stderr)
 		scanner.Buffer(make([]byte, 256*1024), 256*1024) // PERF-05
 		for scanner.Scan() {
-			fmt.Fprintln(os.Stderr, scanner.Text())
+			line := scanner.Text()
+			if cfg.LogWriter != nil {
+				fmt.Fprintln(cfg.LogWriter, line)
+			} else if !cfg.Silent {
+				fmt.Fprintln(os.Stderr, line)
+			}
 			// SEC-00: stderr goroutine does NOT call parseLlamaStats.
 		}
 	}()

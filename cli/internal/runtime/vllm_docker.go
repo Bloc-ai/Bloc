@@ -265,7 +265,11 @@ func (r *DockerVLLMRuntime) Run(ctx context.Context, cfg RunConfig) (stats *Stat
 		scanner.Buffer(make([]byte, 256*1024), 256*1024) // PERF-05: 256 KB prevents ErrTooLong
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Println(line)
+			if cfg.LogWriter != nil {
+				fmt.Fprintln(cfg.LogWriter, line)
+			} else if !cfg.Silent {
+				fmt.Println(line)
+			}
 			parseVLLMStats(line, stats) // stdout only (SEC-00: one goroutine writes stats)
 		}
 	}()
@@ -275,7 +279,11 @@ func (r *DockerVLLMRuntime) Run(ctx context.Context, cfg RunConfig) (stats *Stat
 		scanner.Buffer(make([]byte, 256*1024), 256*1024) // PERF-05
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Fprintln(os.Stderr, line)
+			if cfg.LogWriter != nil {
+				fmt.Fprintln(cfg.LogWriter, line)
+			} else if !cfg.Silent {
+				fmt.Fprintln(os.Stderr, line)
+			}
 			// SEC-00: stderr goroutine does NOT call parseVLLMStats to avoid the data race.
 			// vLLM emits stats to stdout; errors/warnings go to stderr.
 		}

@@ -272,8 +272,12 @@ func (r *SGLangDockerRuntime) Run(ctx context.Context, cfg RunConfig) (stats *St
 		scanner.Buffer(make([]byte, 256*1024), 256*1024) // PERF-05: 256 KB prevents ErrTooLong
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Println(line)
-			parseSGLangStats(line, stats) // stdout only (SEC-00: one goroutine writes stats)
+			if cfg.LogWriter != nil {
+				fmt.Fprintln(cfg.LogWriter, line)
+			} else if !cfg.Silent {
+				fmt.Println(line)
+			}
+			parseSGLangStats(line, stats) // stdout only — SEC-00: single writer goroutine
 		}
 	}()
 	go func() {
@@ -282,7 +286,11 @@ func (r *SGLangDockerRuntime) Run(ctx context.Context, cfg RunConfig) (stats *St
 		scanner.Buffer(make([]byte, 256*1024), 256*1024) // PERF-05
 		for scanner.Scan() {
 			line := scanner.Text()
-			fmt.Fprintln(os.Stderr, line)
+			if cfg.LogWriter != nil {
+				fmt.Fprintln(cfg.LogWriter, line)
+			} else if !cfg.Silent {
+				fmt.Fprintln(os.Stderr, line)
+			}
 			// SEC-00: stderr goroutine does NOT call parseSGLangStats to avoid the data race.
 			// SGLang emits stats to stdout; errors/warnings go to stderr.
 		}
