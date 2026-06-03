@@ -367,12 +367,14 @@ export default function Navbar() {
           { label: "Registry", href: "/registry" },
           { label: "Feed", href: "/feed" },
           { label: "Docs", href: "/docs" },
+          { label: "Updates", href: "/updates" },
           { label: "Submit", href: "/registry/submit" },
         ]
       : [
           { label: "Registry", href: "/registry" },
           { label: "Installation", href: "/installation" },
           { label: "Docs", href: "/docs" },
+          { label: "Updates", href: "/updates" },
           { label: "Blog", href: "/blog" },
         ];
   }, [user]);
