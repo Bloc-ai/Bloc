@@ -585,7 +585,7 @@ func (m ChatModel) renderIdleState() string {
 	leftLines = append(leftLines, centerText(infoLine, wLeft))
 
 	// 2. Compile Right Column Lines
-	tipsTitleRaw := "Tips for getting started"
+	tipsTitleRaw := "TUI Shortcuts"
 	if len(tipsTitleRaw) > wRight {
 		tipsTitleRaw = tipsTitleRaw[:wRight]
 	}
@@ -593,16 +593,16 @@ func (m ChatModel) renderIdleState() string {
 	
 	var tip1Raw string
 	if wRight >= 38 {
-		tip1Raw = "Run /run to start a local model server"
+		tip1Raw = "Type a prompt and press Enter to chat"
 	} else {
-		tip1Raw = "Run /run to start server"
+		tip1Raw = "Press Enter to chat"
 	}
 	if len(tip1Raw) > wRight {
 		tip1Raw = tip1Raw[:wRight]
 	}
 	tip1 := styles.DimText.Render(tip1Raw)
 
-	tip2Raw := "Run /models to view list"
+	tip2Raw := "Press Tab to switch to History view"
 	if len(tip2Raw) > wRight {
 		tip2Raw = tip2Raw[:wRight]
 	}
@@ -610,17 +610,11 @@ func (m ChatModel) renderIdleState() string {
 	
 	dividerLine := lipgloss.NewStyle().Foreground(styles.DimWhite).Render(strings.Repeat("─", wRight))
 	
-	activityTitleRaw := "Recent activity"
+	activityTitleRaw := "Recent Chats"
 	if len(activityTitleRaw) > wRight {
 		activityTitleRaw = activityTitleRaw[:wRight]
 	}
 	activityTitle := lipgloss.NewStyle().Foreground(styles.BlocBlue).Bold(true).Render(activityTitleRaw)
-
-	activityTextRaw := "No recent activity"
-	if len(activityTextRaw) > wRight {
-		activityTextRaw = activityTextRaw[:wRight]
-	}
-	activityText := styles.DimText.Render(activityTextRaw)
 
 	var rightLines []string
 	rightLines = append(rightLines, tipsTitle)
@@ -628,7 +622,37 @@ func (m ChatModel) renderIdleState() string {
 	rightLines = append(rightLines, tip2)
 	rightLines = append(rightLines, dividerLine)
 	rightLines = append(rightLines, activityTitle)
-	rightLines = append(rightLines, activityText)
+
+	sessions, err := data.ListSessions()
+	if err != nil || len(sessions) == 0 {
+		activityText := styles.DimText.Render("No recent chats")
+		rightLines = append(rightLines, activityText)
+	} else {
+		count := 0
+		for _, s := range sessions {
+			// Skip the currently active empty chat if it hasn't been saved yet,
+			// or just list top 3
+			if count >= 3 {
+				break
+			}
+			title := s.Title
+			if title == "New Chat" {
+				continue // Skip empty chats in recent list
+			}
+			if len(title) > wRight-2 {
+				if wRight > 5 {
+					title = title[:wRight-5] + "..."
+				} else {
+					title = ""
+				}
+			}
+			rightLines = append(rightLines, styles.DimText.Render("• "+title))
+			count++
+		}
+		if count == 0 {
+			rightLines = append(rightLines, styles.DimText.Render("No recent chats"))
+		}
+	}
 
 	// Pad both columns to the same height
 	maxLines := len(leftLines)
