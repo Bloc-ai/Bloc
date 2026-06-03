@@ -7,7 +7,6 @@ project_name: bloc
 before:
   hooks:
     - go mod tidy
-    - go mod verify
 
 builds:
   - id: bloc
