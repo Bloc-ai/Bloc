@@ -20,6 +20,8 @@ type LoadSessionMsg struct {
 
 type NewChatMsg struct{}
 
+type RefreshChatMsg struct{}
+
 type AppModel struct {
 	activeTab int
 	tabs      []string
@@ -114,9 +116,21 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// PERF-7: sessions were already loaded on Init(); only re-load on
 			// explicit 'r' key (below). Removing Init() on every tab switch
 			// eliminates O(n) disk reads each time the user presses Tab.
+			if m.activeTab == 0 {
+				m.chatTab, cmd = m.chatTab.Update(RefreshChatMsg{})
+				cmds = append(cmds, cmd)
+			} else if m.activeTab == 2 {
+				cmds = append(cmds, m.historyTab.Init())
+			}
 			return m, tea.Batch(cmds...)
 		case "shift+tab":
 			m.activeTab = (m.activeTab - 1 + len(m.tabs)) % len(m.tabs)
+			if m.activeTab == 0 {
+				m.chatTab, cmd = m.chatTab.Update(RefreshChatMsg{})
+				cmds = append(cmds, cmd)
+			} else if m.activeTab == 2 {
+				cmds = append(cmds, m.historyTab.Init())
+			}
 			return m, tea.Batch(cmds...)
 		case "r":
 			// PERF-7: explicit refresh for the history tab on demand

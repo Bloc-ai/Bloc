@@ -238,6 +238,12 @@ func (m ChatModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 
 	switch msg := msg.(type) {
+	case RefreshChatMsg:
+		if len(m.session.Messages) == 0 {
+			m.viewport.SetContent(m.renderHistory())
+		}
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
