@@ -10,10 +10,38 @@
 - Introduced the Bloc Studio
 - A major update bringing a full-fledged Terminal User Interface (TUI) to Bloc for managing models, chatting, and viewing history.
 
-# v0.4.2 (May 2026)
-- Performance & Security Hardening
-- Resolved critical data integrity bugs, fixed memory leaks, and optimized token streaming rendering performance.
+# v0.4.1 (June 2026)
+- CLI Self-Update Fallback
+- Implemented robust Homebrew upgrade detection and a seamless self-update fallback mechanism for the update command.
 
-# v0.4.0 (May 2026)
-- Apple Silicon & Metal Support
-- Introduced native optimizations for M1/M2/M3 chips via llama.cpp Metal Performance Shaders.
+# v0.4.0 (June 2026)
+- SGLang Engine Support
+- Added native integration for the highly optimized SGLang engine, enabling massive throughput improvements for production deployments.
+
+# v0.3.3 (June 2026)
+- Transitioned Deploy to Run
+- Refactored 'bloc deploy' to 'bloc run' for better ergonomics, while maintaining complete backward compatibility.
+
+# v0.3.2 (June 2026)
+- Expanded Security Blocklist
+- Migrated security rules to an embedded JSON deny-list and expanded the blocklist to proactively intercept 36 potentially dangerous engine flags.
+
+# v0.3.1 (May 2026)
+- Deadlock Fixes
+- Resolved a critical sync.RWMutex deadlock encountered during the DeleteCachedModel operation.
+
+# v0.3.0 (May 2026)
+- Update Pointer Migration
+- Successfully migrated the repository pointer in the update module to the new Bloc-ai/Bloc organization.
+
+# v0.2.1 (May 2026)
+- Cert Pinning Updates
+- Hardened security by updating Vercel GTS cert pinning hashes to the new WR1 intermediate certificates.
+
+# v0.2.0 (May 2026)
+- Windows Cross-Compilation Support
+- Resolved cross-compilation toolchain errors, stabilizing the Windows build pipeline.
+
+# v0.1.0 (May 2026)
+- Initial Release
+- The first stable release of Bloc, featuring the core CLI, dynamic recipe system, and native llama.cpp execution capabilities.
