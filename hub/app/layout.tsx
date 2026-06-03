@@ -7,6 +7,7 @@ import ThemeShortcut from "@/components/ThemeShortcut";
 import { AuthProvider } from "@/context/AuthContext";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
+import ClarityAnalytics from "@/components/ClarityAnalytics";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -76,6 +77,7 @@ export default function RootLayout({
             </main>
             <Toaster position="bottom-right" theme="system" />
             <Analytics />
+            <ClarityAnalytics />
           </AuthProvider>
         </RootProvider>
       </body>
