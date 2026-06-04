@@ -448,7 +448,12 @@ func (r *Recipe) BuildFlags() []string {
 	add("--tensor-split", cfg.TensorSplit)
 	addInt("--main-gpu", cfg.MainGPU)
 	addInt("--n-cpu-moe", cfg.NCPUMoE)
-	addBool("-fa", cfg.FlashAttn)
+	// FIX: llama.cpp changed --flash-attn from a boolean toggle (-fa) to a
+	// value-required flag (--flash-attn [on|off|auto]). Emit the long form with
+	// an explicit value so it works on both old and new binary builds.
+	if cfg.FlashAttn {
+		flags = append(flags, "--flash-attn", "on")
+	}
 	addInt("-b", cfg.BatchSize)
 	addInt("-ub", cfg.UBatchSize)
 	add("-ctk", cfg.CacheTypeK)
@@ -485,7 +490,8 @@ func (r *Recipe) RequiredFlags() map[string]struct{} {
 		required["--n-cpu-moe"] = struct{}{}
 	}
 	if cfg.FlashAttn {
-		required["-fa"] = struct{}{}
+		// FIX: probe for long flag name — matches the new value-required form
+		required["--flash-attn"] = struct{}{}
 	}
 	if cfg.SpecType != "" {
 		required["--spec-type"] = struct{}{}

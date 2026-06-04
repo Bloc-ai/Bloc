@@ -50,19 +50,34 @@ func TestBuildFlags_FlashAttn_Bool(t *testing.T) {
 	r := &Recipe{
 		Schema: "bloc/v1",
 		EngineConfig: EngineConfig{
-			FlashAttn: true,
+			FlashAttn:  true,
+			BatchSize:  512,
+			UBatchSize: 512,
 		},
 	}
 	flags := r.BuildFlags()
-	found := false
-	for _, f := range flags {
+
+	// FIX: --flash-attn now requires a value (on|off|auto) — must NOT emit bare -fa.
+	// Also verify the value token "on" immediately follows the flag (not -b).
+	for i, f := range flags {
 		if f == "-fa" {
-			found = true
-			break
+			t.Error("must not emit bare -fa — llama.cpp now requires --flash-attn [on|off|auto]")
+		}
+		if f == "--flash-attn" {
+			if i+1 >= len(flags) || flags[i+1] != "on" {
+				t.Errorf("--flash-attn must be immediately followed by \"on\", got: %v", flags[i+1:])
+			}
 		}
 	}
-	if !found {
-		t.Error("expected -fa flag for FlashAttn=true")
+
+	hasFlashAttnOn := false
+	for i, f := range flags {
+		if f == "--flash-attn" && i+1 < len(flags) && flags[i+1] == "on" {
+			hasFlashAttnOn = true
+		}
+	}
+	if !hasFlashAttnOn {
+		t.Error("expected --flash-attn on in flags for FlashAttn=true")
 	}
 }
 
@@ -205,8 +220,12 @@ func TestRequiredFlags_FlashAttn(t *testing.T) {
 		EngineConfig: EngineConfig{FlashAttn: true},
 	}
 	req := r.RequiredFlags()
-	if _, ok := req["-fa"]; !ok {
-		t.Error("expected -fa in required flags when FlashAttn=true")
+	// FIX: probe now checks for the long form --flash-attn, not -fa
+	if _, ok := req["--flash-attn"]; !ok {
+		t.Error("expected --flash-attn in required flags when FlashAttn=true")
+	}
+	if _, ok := req["-fa"]; ok {
+		t.Error("must not add bare -fa to required flags — new llama.cpp requires value form")
 	}
 }
 
