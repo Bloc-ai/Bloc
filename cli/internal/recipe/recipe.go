@@ -103,9 +103,9 @@ type EngineConfig struct {
 
 	// Speculative decoding (llama.cpp native MTP)
 	SpecType       string  `yaml:"spec_type"`        // --spec-type
-	SpecDraftModel string  `yaml:"spec_draft_model"` // --model-draft
-	SpecDraftNMax  int     `yaml:"spec_draft_n_max"` // --draft
-	SpecDraftPMin  float64 `yaml:"spec_draft_p_min"` // --draft-p-min
+	SpecDraftModel string  `yaml:"spec_draft_model"` // --spec-draft-model
+	SpecDraftNMax  int     `yaml:"spec_draft_n_max"` // --spec-draft-n-max
+	SpecDraftPMin  float64 `yaml:"spec_draft_p_min"` // --spec-draft-p-min
 
 	// CPU & threading
 	Threads int    `yaml:"threads"` // -t
@@ -459,9 +459,9 @@ func (r *Recipe) BuildFlags() []string {
 	add("-ctk", cfg.CacheTypeK)
 	add("-ctv", cfg.CacheTypeV)
 	add("--spec-type", cfg.SpecType)
-	add("--model-draft", cfg.SpecDraftModel)
-	addInt("--draft", cfg.SpecDraftNMax)
-	addFloat("--draft-p-min", cfg.SpecDraftPMin)
+	add("--spec-draft-model", cfg.SpecDraftModel)
+	addInt("--spec-draft-n-max", cfg.SpecDraftNMax)
+	addFloat("--spec-draft-p-min", cfg.SpecDraftPMin)
 	addInt("-t", cfg.Threads)
 	add("--numa", cfg.NUMA)
 	addBool("--mlock", cfg.MLock)
@@ -497,10 +497,10 @@ func (r *Recipe) RequiredFlags() map[string]struct{} {
 		required["--spec-type"] = struct{}{}
 	}
 	if cfg.SpecDraftModel != "" {
-		required["--model-draft"] = struct{}{}
+		required["--spec-draft-model"] = struct{}{}
 	}
 	if cfg.SpecDraftNMax != 0 {
-		required["--draft"] = struct{}{}
+		required["--spec-draft-n-max"] = struct{}{}
 	}
 	if cfg.CacheTypeK != "" {
 		required["-ctk"] = struct{}{}
@@ -582,7 +582,9 @@ func (r *Recipe) BuildVLLMFlags() []string {
 
 	// ── Chat template & tool calling ──────────────────────────────────────────
 	add("--tool-call-parser", cfg.ToolCallParser)
-	add("--reasoning-parser", cfg.ReasoningParser)
+	if cfg.ReasoningParser != "" {
+		flags = append(flags, "--enable-reasoning", "--reasoning-parser", cfg.ReasoningParser)
+	}
 
 	// ── Concurrency (maps to llama.cpp -np equivalent) ────────────────────────
 	addInt("--max-num-seqs", cfg.NParallel)

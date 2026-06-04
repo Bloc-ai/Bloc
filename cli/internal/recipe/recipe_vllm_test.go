@@ -122,6 +122,35 @@ func TestBuildVLLMFlags_EnableExpertParallel(t *testing.T) {
 	}
 }
 
+func TestBuildVLLMFlags_ReasoningOutputs(t *testing.T) {
+	r := &Recipe{
+		Schema: "bloc/v1",
+		EngineConfig: EngineConfig{
+			ReasoningParser: "deepseek_r1",
+		},
+	}
+	flags := r.BuildVLLMFlags()
+	contains := func(flags []string, flag, val string) bool {
+		for i, f := range flags {
+			if f == flag {
+				if val == "" {
+					return true
+				}
+				if i+1 < len(flags) && flags[i+1] == val {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if !contains(flags, "--enable-reasoning", "") {
+		t.Error("expected --enable-reasoning flag when reasoning_parser is set")
+	}
+	if !contains(flags, "--reasoning-parser", "deepseek_r1") {
+		t.Error("expected --reasoning-parser deepseek_r1")
+	}
+}
+
 // ─── Parse vLLM recipe tests ──────────────────────────────────────────────────
 
 func TestParseVLLMRecipe_Valid(t *testing.T) {

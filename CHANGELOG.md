@@ -1,3 +1,9 @@
+# v0.5.4 (June 2026)
+- Speculative Decoding & vLLM Reasoning Flag Updates
+- Updated speculative decoding flags to use the modern `llama-server` flags (`--spec-draft-model`, `--spec-draft-n-max`, `--spec-draft-p-min`) instead of deprecated/legacy aliases, preventing capability probe and startup failures on modern builds.
+- Updated vLLM flag builder to automatically append the `--enable-reasoning` boolean flag when a reasoning parser is specified (such as `deepseek_r1`), enabling chain-of-thought extraction natively.
+- Updated corresponding unit test suites to verify modern flags are built and probed correctly.
+
 # v0.5.3 (June 2026)
 - Flash Attention Flag Fix
 - Fixed a crash affecting all recipes with `flash_attn: true`. A breaking change in `llama.cpp` renamed `--flash-attn` from a boolean toggle (`-fa`) to a value-required flag (`--flash-attn [on|off|auto]`). The CLI was emitting bare `-fa`, causing `llama-server` to consume the next flag (`-b`) as the value and abort on startup. `BuildFlags()` now correctly emits `--flash-attn on`, and `RequiredFlags()` probes for the long-form flag. Tests updated to reject bare `-fa` emission.

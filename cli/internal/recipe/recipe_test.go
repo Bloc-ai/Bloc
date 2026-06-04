@@ -185,11 +185,11 @@ func TestBuildFlags_SpecDraftModel(t *testing.T) {
 	if !has("--spec-type", "mtp") {
 		t.Error("expected --spec-type mtp")
 	}
-	if !has("--model-draft", "/path/to/draft.gguf") {
-		t.Error("expected --model-draft /path/to/draft.gguf")
+	if !has("--spec-draft-model", "/path/to/draft.gguf") {
+		t.Error("expected --spec-draft-model /path/to/draft.gguf")
 	}
-	if !has("--draft", "5") {
-		t.Error("expected --draft 5")
+	if !has("--spec-draft-n-max", "5") {
+		t.Error("expected --spec-draft-n-max 5")
 	}
 }
 
@@ -238,11 +238,11 @@ func TestRequiredFlags_SpecType(t *testing.T) {
 	if _, ok := req["--spec-type"]; !ok {
 		t.Error("expected --spec-type in required flags")
 	}
-	if _, ok := req["--model-draft"]; !ok {
-		t.Error("expected --model-draft in required flags")
+	if _, ok := req["--spec-draft-model"]; !ok {
+		t.Error("expected --spec-draft-model in required flags")
 	}
-	if _, ok := req["--draft"]; !ok {
-		t.Error("expected --draft in required flags")
+	if _, ok := req["--spec-draft-n-max"]; !ok {
+		t.Error("expected --spec-draft-n-max in required flags")
 	}
 }
 
