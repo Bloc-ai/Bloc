@@ -1,3 +1,7 @@
+# v0.5.3 (June 2026)
+- Flash Attention Flag Fix
+- Fixed a crash affecting all recipes with `flash_attn: true`. A breaking change in `llama.cpp` renamed `--flash-attn` from a boolean toggle (`-fa`) to a value-required flag (`--flash-attn [on|off|auto]`). The CLI was emitting bare `-fa`, causing `llama-server` to consume the next flag (`-b`) as the value and abort on startup. `BuildFlags()` now correctly emits `--flash-attn on`, and `RequiredFlags()` probes for the long-form flag. Tests updated to reject bare `-fa` emission.
+
 # v0.5.2 (June 2026)
 - Sync Tab State
 - Fixed an aggressive caching bug in the TUI. The Chat and History tabs now seamlessly synchronize session states dynamically.
