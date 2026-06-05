@@ -25,7 +25,8 @@ model:
   file: "exact-filename-Q4_K_M.gguf" # Exact filename for deterministic downloads
   download_url: "https://huggingface.co/quantizer/repo-name-gguf/resolve/main/exact-filename-Q4_K_M.gguf"
   quantization: "Q4_K_M" # Q4_K_M, Q5_K_M, Q8_0, etc.
-  size_gb: 4.8           # Approximate file download size in gigabytes
+  sha256: null           # Optional: Cryptographic SHA256 checksum for absolute verification
+  size_gb: 4.8           # Optional: Approximate download size in gigabytes (used for disk checks)
   parameters: "7B"       # Parameter size (e.g. 7B, 13B, 30B, 70B)
   architecture: "Dense"   # Dense or MoE
 

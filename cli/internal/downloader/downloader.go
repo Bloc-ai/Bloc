@@ -171,30 +171,13 @@ func validateGGUF(path string) error {
 // IsAlreadyCached checks if a model file is already in the cache.
 // F-08: Validates by checking the in-memory index (which stores verified SHA256)
 // rather than trusting the symlink target filename.
-// expectedSizeBytes: expected file size in bytes (0 = unknown, skips size check).
-func (m *Manager) IsAlreadyCached(friendlyName, expectedSHA256 string, expectedSizeBytes int64) (bool, error) {
+func (m *Manager) IsAlreadyCached(friendlyName, expectedSHA256 string) (bool, error) {
 	linkPath := m.ModelPath(friendlyName)
 
-	// If no SHA256 provided, check existence + size + GGUF magic.
+	// If no SHA256 provided, check existence + GGUF magic.
 	if expectedSHA256 == "" {
-		stat, err := os.Stat(linkPath)
-		if err != nil {
+		if _, err := os.Stat(linkPath); err != nil {
 			return false, nil
-		}
-		// Size check: if we know the expected size, reject files that are
-		// significantly smaller (truncated download).
-		if expectedSizeBytes > 0 {
-			const tolerancePct = 0.01 // 1% tolerance
-			minAcceptable := int64(float64(expectedSizeBytes) * (1 - tolerancePct))
-			if stat.Size() < minAcceptable {
-				// File is too small — evict and force re-download.
-				fmt.Fprintf(os.Stderr,
-					"  \033[33m⚠  Cached file %s is %d bytes but expected ~%d bytes — evicting corrupt cache entry\033[0m\n",
-					filepath.Base(linkPath), stat.Size(), expectedSizeBytes,
-				)
-				_ = os.Remove(linkPath)
-				return false, nil
-			}
 		}
 		// GGUF magic check: verify the file is a valid model, not a partial
 		// download or CDN error page.
@@ -220,33 +203,13 @@ func (m *Manager) IsAlreadyCached(friendlyName, expectedSHA256 string, expectedS
 
 	// Verify the actual file still exists on disk (not just the index entry)
 	finalPath := filepath.Join(m.cacheDir, "models", entry.SHA256)
-	stat, err := os.Stat(finalPath)
-	if err != nil {
+	if _, err := os.Stat(finalPath); err != nil {
 		// File was deleted externally — remove stale index entry
 		m.indexMu.Lock()
 		delete(m.index, expectedSHA256)
 		m.indexMu.Unlock()
 		_ = m.writeIndexToDisk()
 		return false, nil
-	}
-
-	// Size sanity check even when we have a SHA256 index entry.
-	if expectedSizeBytes > 0 {
-		const tolerancePct = 0.01
-		minAcceptable := int64(float64(expectedSizeBytes) * (1 - tolerancePct))
-		if stat.Size() < minAcceptable {
-			fmt.Fprintf(os.Stderr,
-				"  \033[33m⚠  Indexed file %s is %d bytes but expected ~%d bytes — evicting corrupt cache entry\033[0m\n",
-				filepath.Base(finalPath), stat.Size(), expectedSizeBytes,
-			)
-			m.indexMu.Lock()
-			delete(m.index, expectedSHA256)
-			m.indexMu.Unlock()
-			_ = m.writeIndexToDisk()
-			_ = os.Remove(finalPath)
-			_ = os.Remove(linkPath)
-			return false, nil
-		}
 	}
 
 	// GGUF magic check on indexed files too.
@@ -276,9 +239,8 @@ func (m *Manager) IsAlreadyCached(friendlyName, expectedSHA256 string, expectedS
 //
 // Fix #6: HF auth token injected into every download request.
 func (m *Manager) EnsureDownloaded(ctx context.Context, friendlyName, downloadURL, expectedSHA256 string, sizeGB float64, progress ProgressFn) (string, error) {
-	// Check cache first, threading expected size for integrity validation.
-	expectedSizeBytes := int64(sizeGB * 1024 * 1024 * 1024)
-	cached, err := m.IsAlreadyCached(friendlyName, expectedSHA256, expectedSizeBytes)
+	// Check cache first.
+	cached, err := m.IsAlreadyCached(friendlyName, expectedSHA256)
 	if err == nil && cached {
 		return m.ModelPath(friendlyName), nil
 	}
@@ -469,18 +431,6 @@ func (m *Manager) EnsureDownloaded(ctx context.Context, friendlyName, downloadUR
 		if expectedSHA256 != "" && !strings.EqualFold(actualSHA256, expectedSHA256) {
 			os.Remove(partialPath)
 			return "", fmt.Errorf("SHA256 mismatch: expected %s, got %s — file deleted", expectedSHA256, actualSHA256)
-		}
-		if expectedSHA256 == "" && sizeGB > 0 {
-			expectedBytes := int64(sizeGB * 1024 * 1024 * 1024)
-			const tolerancePct = 0.01 // 1%
-			minAcceptable := int64(float64(expectedBytes) * (1 - tolerancePct))
-			if downloaded < minAcceptable {
-				_ = os.Remove(partialPath)
-				return "", fmt.Errorf(
-					"download appears truncated: got %d bytes but expected ~%d bytes (%.1f GB) — file deleted",
-					downloaded, expectedBytes, sizeGB,
-				)
-			}
 		}
 
 		// Determine final hash-addressed path

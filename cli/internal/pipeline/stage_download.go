@@ -94,8 +94,7 @@ func (s *DownloadModelStage) ensureHFRepo(ctx context.Context, state *RunState, 
 func (s *DownloadModelStage) ensureFile(ctx context.Context, state *RunState, dm *downloader.Manager) error {
 	r := state.Recipe
 
-	expectedSizeBytes := int64(r.Model.SizeGB * 1024 * 1024 * 1024)
-	cached, _ := dm.IsAlreadyCached(r.Model.File, r.Model.SHA256, expectedSizeBytes)
+	cached, _ := dm.IsAlreadyCached(r.Model.File, r.Model.SHA256)
 	if cached {
 		state.ModelPath = dm.ModelPath(r.Model.File)
 		fmt.Fprintf(os.Stderr, "  \033[32m✓\033[0m  Already cached: %s\n", state.ModelPath)

@@ -100,6 +100,28 @@ function parseChangelog(): UpdateItem[] {
   return updates;
 }
 
+function renderFormattedText(text: string) {
+  const regex = /(\*\*.*?\*\*|`.*?`)/g;
+  const parts = text.split(regex);
+
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={index} className="font-bold text-black dark:text-white">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    } else if (part.startsWith("`") && part.endsWith("`")) {
+      return (
+        <code key={index} className="font-mono bg-black/5 dark:bg-white/10 px-1.5 py-0.5 rounded text-xs text-black dark:text-white border border-black/10 dark:border-white/10 mx-0.5">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return part;
+  });
+}
+
 export default function UpdatesPage() {
   const updates = parseChangelog();
 
@@ -118,6 +140,7 @@ export default function UpdatesPage() {
         {updates.map((update, i) => {
           const Icon = update.icon;
           const isMajor = update.version.endsWith(".0");
+          const isPatch = !isMajor;
           
           return (
             <div key={update.version} className="relative pl-10 md:pl-16">
@@ -140,8 +163,10 @@ export default function UpdatesPage() {
                 )}
 
                 <div className="flex flex-col md:flex-row md:items-baseline gap-3 md:gap-4 mb-4">
-                  <h2 className="text-xl md:text-2xl font-bold tracking-tight font-switzer text-black dark:text-white">
-                    {update.title}
+                  <h2 className={`tracking-tight font-switzer text-black dark:text-white ${
+                    isPatch ? "text-lg md:text-xl font-semibold" : "text-xl md:text-2xl font-bold"
+                  }`}>
+                    {renderFormattedText(update.title)}
                   </h2>
                   <div className="flex items-center gap-3 font-mono text-[10px] md:text-xs uppercase tracking-wider">
                     <span className={`px-2 py-1 font-bold ${
@@ -159,20 +184,22 @@ export default function UpdatesPage() {
                 </div>
                 
                 {update.points.length > 0 && (
-                  <ul className="space-y-2.5 font-mono text-[13px] md:text-sm text-zinc-600 dark:text-zinc-350 max-w-2xl mt-4">
+                  <ul className={`space-y-2.5 font-mono ${
+                    isPatch ? "text-[12px] md:text-xs" : "text-[13px] md:text-sm"
+                  } text-zinc-600 dark:text-zinc-350 max-w-2xl mt-4`}>
                     {update.points.map((pt, idx) => {
                       if (pt.depth === 0) {
                         return (
                           <li key={idx} className="font-semibold text-black dark:text-white mt-4 first:mt-0 list-none flex items-start gap-2">
                             <span className="text-[#2563EB] shrink-0 mt-1.5 text-[8px]">●</span>
-                            <span>{pt.text}</span>
+                            <span>{renderFormattedText(pt.text)}</span>
                           </li>
                         );
                       } else {
                         return (
                           <li key={idx} className="pl-5 list-none flex items-start gap-2 text-zinc-600 dark:text-zinc-400">
                             <span className="text-zinc-400 dark:text-zinc-650 shrink-0 mt-1.5 text-[6px]">■</span>
-                            <span>{pt.text}</span>
+                            <span>{renderFormattedText(pt.text)}</span>
                           </li>
                         );
                       }

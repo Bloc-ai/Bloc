@@ -1,19 +1,24 @@
+# v0.6.5 (June 2026)
+- **Robust Downloader Integrity**
+- Replaced strict model size validation checks against recipe metadata with dynamic server-side validation and file magic-bytes checks, preventing false-positive download failures on rounded or approximate size values.
+- **Documentation & Templates**
+- Exposed optional `sha256` fields and updated size validation notes in `TEMPLATE.yaml` and `recipes.mdx` to make recipe creation easier.
+
 # v0.6.4 (June 2026)
-- **Downloader & Cache Security**: Added transient network error retries, concurrent download safety via unique temp files, and GGUF/size validation to evict corrupt cache entries.
-- **Process Supervisor & Lifecycle**: Added 5s SIGKILL group escalation on close, linked pre-run scripts to context cancel, and fixed health poller context to detect crashes instantly.
-- **Capabilities Cache**: Replaced sync.Once with mutex to avoid caching cancelled context errors.
-- **CLI Commands**: Raised update size limit to 500MB, fixed division-by-zero progress crash, and validated local YAML path existence to report typos cleanly.
-- **Port & Logging**: Added startup port collision checking and delayed exit logging to protect TUI screens.
+- **Reliable Downloads & Cache Protection**: Added automatic retries for download failures and ensured files don't conflict or get corrupted, automatically cleaning up bad cache files.
+- **Improved App Stability & Crash Detection**: The app now shuts down cleanly, prevents leftover background tasks, and immediately detects engine crashes to keep you informed.
+- **Smoother Command Line Experience**: Increased the update file size limit to 500MB, fixed progress bar crashes, and added helpful error messages if you mistype a configuration path.
+- **Conflict Prevention**: Added checks to prevent starting on a port already in use and delayed exit logs so you can read what went wrong before the interface closes.
 
 # v0.6.3 (June 2026)
-- Fixed --port flag being misclassified as a boolean implicit (no value) flag by inferValueType, causing llama-server to exit immediately with "expected value for argument". Added PORT to the string-value placeholder token list alongside the HOST fix from v0.6.2.
+- **Port Configuration Fix**: Fixed a bug where setting the custom port flag (`--port`) caused the backend server to immediately exit. You can now reliably configure custom ports.
 
 # v0.6.2 (June 2026)
-- Fixed a bug where --host was misclassified as a boolean implicit flag, causing the next flag (--port) to be consumed as the hostname and llama-server to fail on startup. Added HOST, ADDR, and IP to string-value type inference to resolve this.
+- **Host Configuration Fix**: Fixed a startup crash caused by configuring the backend server host address (`--host`), ensuring port and host flags are correctly interpreted.
 
 # v0.6.1 (June 2026)
-- Stabilized Windows and Unix CI tests by replacing flaky shell wrappers (`pause`, `timeout`, `sh -c`) with a native Go `blocker` binary.
-- Bypassed `syscall.SIGTERM` signal usage on Windows to fix a persistent 5-second process kill timeout delay.
+- **Improved Testing Stability**: Stabilized internal tests on Windows and macOS/Linux by using native components instead of brittle system scripts.
+- **Faster Windows Shutdown**: Fixed a persistent 5-second shutdown delay on Windows when terminating processes.
 
 # v0.6.0 (June 2026)
 - Core Engine Rebuild & Runtime System Redesign
@@ -32,54 +37,52 @@
   - Resolved nil-map panic vectors in local download operations and fixed deprecated flag compatibility issues with vLLM 0.10.0+.
 
 # v0.5.4 (June 2026)
-- Speculative Decoding & vLLM Reasoning Flag Updates
-- Updated speculative decoding flags to use the modern `llama-server` flags (`--spec-draft-model`, `--spec-draft-n-max`, `--spec-draft-p-min`) instead of deprecated/legacy aliases, preventing capability probe and startup failures on modern builds.
-- Updated vLLM flag builder to automatically append the `--enable-reasoning` boolean flag when a reasoning parser is specified (such as `deepseek_r1`), enabling chain-of-thought extraction natively.
-- Updated corresponding unit test suites to verify modern flags are built and probed correctly.
+- **Modern Model Reasoning & Performance Support**
+- Updated compatibility flags for modern local model engines (like `llama-server` and `vLLM`) to prevent startup failures, and enabled native reasoning/chain-of-thought extraction for reasoning models like `DeepSeek-R1`.
 
 # v0.5.3 (June 2026)
-- Flash Attention Flag Fix
-- Fixed a crash affecting all recipes with `flash_attn: true`. A breaking change in `llama.cpp` renamed `--flash-attn` from a boolean toggle (`-fa`) to a value-required flag (`--flash-attn [on|off|auto]`). The CLI was emitting bare `-fa`, causing `llama-server` to consume the next flag (`-b`) as the value and abort on startup. `BuildFlags()` now correctly emits `--flash-attn on`, and `RequiredFlags()` probes for the long-form flag. Tests updated to reject bare `-fa` emission.
+- **Flash Attention Support**
+- Fixed a crash when running models with Flash Attention enabled by updating the settings flags to match the latest changes in the underlying model engine (`llama.cpp`).
 
 # v0.5.2 (June 2026)
-- Sync Tab State
-- Fixed an aggressive caching bug in the TUI. The Chat and History tabs now seamlessly synchronize session states dynamically.
+- **Instant Screen Sync**
+- Fixed a visual delay in the interface where changes in the Chat or History tab did not update across both screens instantly.
 
 # v0.5.1 (June 2026)
-- Dynamic TUI Shortcuts & Recent History
-- Replaced hardcoded CLI tips in the Studio with context-aware shortcuts and dynamically linked the Recent Chats list to actual session history.
+- **Contextual UI Shortcuts**
+- Replaced static tips in the Studio with helpful, dynamic keyboard shortcuts and linked the "Recent Chats" list to your actual chat history.
 
 # v0.5.0 (June 2026)
 - Introduced the Bloc Studio
 - A major update bringing a full-fledged Terminal User Interface (TUI) to Bloc for managing models, chatting, and viewing history.
 
 # v0.4.1 (June 2026)
-- CLI Self-Update Fallback
-- Implemented robust Homebrew upgrade detection and a seamless self-update fallback mechanism for the update command.
+- **Seamless Self-Updates**
+- Improved update checks on macOS for Homebrew users, and added a smooth fallback update mechanism if the primary update fails.
 
 # v0.4.0 (June 2026)
 - SGLang Engine Support
 - Added native integration for the highly optimized SGLang engine, enabling massive throughput improvements for production deployments.
 
 # v0.3.3 (June 2026)
-- Transitioned Deploy to Run
-- Refactored 'bloc deploy' to 'bloc run' for better ergonomics, while maintaining complete backward compatibility.
+- **Simplified CLI Commands**
+- Renamed the deployment command from `bloc deploy` to a simpler and more intuitive `bloc run`, while keeping the old command working for backward compatibility.
 
 # v0.3.2 (June 2026)
-- Expanded Security Blocklist
-- Migrated security rules to an embedded JSON deny-list and expanded the blocklist to proactively intercept 36 potentially dangerous engine flags.
+- **Enhanced Security Safeguards**
+- Expanded the list of blocked or unsafe settings flags (now covering 36 flags) to protect your system from dangerous model behavior.
 
 # v0.3.1 (May 2026)
-- Deadlock Fixes
-- Resolved a critical sync.RWMutex deadlock encountered during the DeleteCachedModel operation.
+- **Resolved Freeze Bugs**
+- Fixed a critical freeze (deadlock) that occurred when deleting a model from your local cache.
 
 # v0.3.0 (May 2026)
 - Update Pointer Migration
 - Successfully migrated the repository pointer in the update module to the new Bloc-ai/Bloc organization.
 
 # v0.2.1 (May 2026)
-- Cert Pinning Updates
-- Hardened security by updating Vercel GTS cert pinning hashes to the new WR1 intermediate certificates.
+- **Hardened Security Certificates**
+- Updated secure connection certificates to maintain safe, encrypted communications.
 
 # v0.2.0 (May 2026)
 - Windows Cross-Compilation Support

@@ -66,6 +66,8 @@ model:
 * **hf_repo**: Hugging Face repo path (`org/repo`) for full model repository downloads. Validated against a strict security regex.
 * **file**: Precise GGUF filename for deterministic download caching.
 * **download_url**: Direct HTTPS GGUF download link.
+* **sha256** (optional): Cryptographic SHA256 checksum of the GGUF file. Highly recommended for absolute integrity validation.
+* **size_gb** (optional): Approximate download size in gigabytes (e.g. `4.8`). Used to display size stats on the website and check disk space before downloading.
 
 ### `engine` (required)
 ```yaml

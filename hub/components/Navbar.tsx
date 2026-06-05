@@ -366,7 +366,6 @@ export default function Navbar() {
       ? [
           { label: "Registry", href: "/registry" },
           { label: "Feed", href: "/feed" },
-          { label: "Updates", href: "/updates" },
           { label: "Docs", href: "/docs" },
           { label: "Submit", href: "/registry/submit" },
         ]
