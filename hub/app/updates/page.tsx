@@ -8,11 +8,16 @@ export const metadata: Metadata = {
   description: "Changelog and release notes for the Bloc AI platform.",
 };
 
+type BulletPoint = {
+  text: string;
+  depth: number;
+};
+
 type UpdateItem = {
   version: string;
   date: string;
   title: string;
-  description: string;
+  points: BulletPoint[];
   icon: LucideIcon;
 };
 
@@ -47,21 +52,31 @@ function parseChangelog(): UpdateItem[] {
 
     // First bullet is title
     let title = "";
-    const descriptionLines: string[] = [];
+    const points: BulletPoint[] = [];
 
-    for (let i = 1; i < lines.length; i++) {
-      let line = lines[i].trim();
-      if (line.startsWith("- ")) {
-        line = line.substring(2).trim();
-      }
-      if (i === 1) {
-        title = line;
-      } else {
-        descriptionLines.push(line);
-      }
+    // Parse lines to extract title and points with hierarchy
+    let firstLine = lines[1];
+    if (firstLine.trim().startsWith("- ")) {
+      title = firstLine.trim().substring(2).trim();
+    } else {
+      title = firstLine.trim();
     }
 
-    const description = descriptionLines.join(" ");
+    for (let i = 2; i < lines.length; i++) {
+      const originalLine = lines[i];
+      const trimmedLine = originalLine.trim();
+      
+      // Determine indentation depth
+      const leadingSpaces = originalLine.match(/^\s*/)?.[0].length || 0;
+      const depth = leadingSpaces >= 2 ? 1 : 0;
+
+      let text = trimmedLine;
+      if (text.startsWith("- ")) {
+        text = text.substring(2).trim();
+      }
+
+      points.push({ text, depth });
+    }
     
     // Choose icon
     let icon = Activity;
@@ -77,7 +92,7 @@ function parseChangelog(): UpdateItem[] {
       version,
       date,
       title,
-      description,
+      points,
       icon,
     });
   }
@@ -143,9 +158,27 @@ export default function UpdatesPage() {
                   </div>
                 </div>
                 
-                <p className="text-zinc-600 dark:text-zinc-300 font-mono text-[13px] md:text-sm leading-relaxed max-w-2xl">
-                  {update.description}
-                </p>
+                {update.points.length > 0 && (
+                  <ul className="space-y-2.5 font-mono text-[13px] md:text-sm text-zinc-600 dark:text-zinc-350 max-w-2xl mt-4">
+                    {update.points.map((pt, idx) => {
+                      if (pt.depth === 0) {
+                        return (
+                          <li key={idx} className="font-semibold text-black dark:text-white mt-4 first:mt-0 list-none flex items-start gap-2">
+                            <span className="text-[#2563EB] shrink-0 mt-1.5 text-[8px]">●</span>
+                            <span>{pt.text}</span>
+                          </li>
+                        );
+                      } else {
+                        return (
+                          <li key={idx} className="pl-5 list-none flex items-start gap-2 text-zinc-600 dark:text-zinc-400">
+                            <span className="text-zinc-400 dark:text-zinc-650 shrink-0 mt-1.5 text-[6px]">■</span>
+                            <span>{pt.text}</span>
+                          </li>
+                        );
+                      }
+                    })}
+                  </ul>
+                )}
               </div>
             </div>
           );

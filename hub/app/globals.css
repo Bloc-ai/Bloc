@@ -197,14 +197,15 @@ html {
 /* Lock scroll on the body and main content wrapper specifically when on docs pages */
 #nd-docs-layout {
   position: fixed;
-  top: 0;
+  top: var(--banner-height, 0px) !important;
   left: 0;
   width: 100vw;
-  height: 100dvh;
+  height: calc(100dvh - var(--banner-height, 0px)) !important;
   overflow: hidden;
   padding-top: 0px !important; /* Keep container at top: 0 so backgrounds/borders touch the navbar */
   --fd-nav-height: 48px !important;
   --fd-header-height: 48px !important;
+  transition: top 300ms ease-in-out, height 300ms ease-in-out;
 }
 #nd-docs-layout aside,
 #nd-docs-layout .fd-sidebar {

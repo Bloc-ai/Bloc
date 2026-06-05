@@ -381,7 +381,10 @@ export default function Navbar() {
 
   if (isDocs) {
     return (
-      <nav className="fixed top-0 left-0 right-0 h-12 z-50 bg-[#f6f6f3]/95 dark:bg-[#171616]/95 border-b border-zinc-200 dark:border-zinc-800 backdrop-blur-md pointer-events-auto select-none flex items-center px-4 md:px-6 justify-between gap-4">
+      <nav 
+        style={{ top: "var(--banner-height, 0px)" }}
+        className="fixed left-0 right-0 h-12 z-50 bg-[#f6f6f3]/95 dark:bg-[#171616]/95 border-b border-zinc-200 dark:border-zinc-800 backdrop-blur-md pointer-events-auto select-none flex items-center px-4 md:px-6 justify-between gap-4 transition-all duration-300 ease-in-out"
+      >
         {/* Brand */}
         <div className="flex items-center px-3 md:px-4 h-7 bg-[#2563EB] rounded-md shrink-0 shadow-sm">
           <Link href="/" className="font-mono text-[13px] font-medium leading-none text-white tracking-tight whitespace-nowrap">Bloc</Link>
@@ -486,7 +489,10 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex flex-col px-4 pt-2 gap-1 pointer-events-none">
+    <nav 
+      style={{ top: "var(--banner-height, 0px)" }}
+      className="fixed left-0 right-0 z-50 flex flex-col px-4 pt-2 gap-1 pointer-events-none transition-all duration-300 ease-in-out"
+    >
       <div className="max-w-7xl w-full mx-auto hidden md:flex items-center h-10 gap-1 pointer-events-auto px-4 border-x border-transparent">
         <div className="flex items-center px-4 h-7 bg-[#2563EB] rounded-md shrink-0 shadow-sm">
           <Link href="/" className="font-mono text-[13px] font-medium leading-none text-white tracking-tight whitespace-nowrap">Bloc</Link>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Silkscreen, Geist } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import Banner from "@/components/Banner";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import ThemeShortcut from "@/components/ThemeShortcut";
 import { AuthProvider } from "@/context/AuthContext";
@@ -72,8 +73,12 @@ export default function RootLayout({
         <RootProvider theme={{ defaultTheme: "system", enableSystem: true }}>
           <AuthProvider>
             <ThemeShortcut />
+            <Banner />
             <Navbar />
-            <main className="flex-grow flex flex-col pt-12">
+            <main 
+              className="flex-grow flex flex-col transition-all duration-300 ease-in-out"
+              style={{ paddingTop: "calc(var(--banner-height, 0px) + 3rem)" }}
+            >
               {children}
             </main>
             <Toaster position="bottom-right" theme="system" />
