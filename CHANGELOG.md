@@ -1,3 +1,8 @@
+# v0.7.0 (June 2026)
+- Implemented port availability checking before starting the engine and TUI to prevent launch corruption and port conflicts.
+- Delayed engine exit logging to prevent raw error streams from corrupting the Bubble Tea screen during active runs.
+- Enhanced engine subprocess lifecycle management to cleanly terminate processes on TUI exit, preventing orphaned instances.
+
 # v0.6.3 (June 2026)
 - Fixed --port flag being misclassified as a boolean implicit (no value) flag by inferValueType, causing llama-server to exit immediately with "expected value for argument". Added PORT to the string-value placeholder token list alongside the HOST fix from v0.6.2.
 

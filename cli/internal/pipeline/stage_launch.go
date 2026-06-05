@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -23,8 +24,9 @@ const engineReadyTimeout = 5 * time.Minute
 
 // engineResult carries the outcome of a completed engine subprocess.
 type engineResult struct {
-	stats  *process.Stats
-	runErr error
+	stats        *process.Stats
+	runErr       error
+	wasCancelled bool
 }
 
 // LaunchStage is the final stage: it opens the log file, starts the engine in
@@ -58,6 +60,16 @@ func (s *LaunchStage) Run(ctx context.Context, state *RunState) error {
 	port := state.ResolvedPort()
 	state.Port = port
 
+	// Check if the port is already in use by another process
+	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	if err != nil {
+		if logFile != nil {
+			logFile.Close()
+		}
+		return fmt.Errorf("port %d is already in use: %w", port, err)
+	}
+	ln.Close()
+
 	launchCfg := engine.LaunchConfig{
 		ModelPath: state.ModelPath,
 		Flags:     state.Flags,
@@ -83,14 +95,16 @@ func (s *LaunchStage) Run(ctx context.Context, state *RunState) error {
 		return fmt.Errorf("cannot create engine supervisor: %w", err)
 	}
 
+	// Create a local cancellable context for managing the engine's lifecycle cleanly
+	launchCtx, launchCancel := context.WithCancel(ctx)
+	defer launchCancel()
+
 	// ── Start engine goroutine (RACE-1: typed channel, not bare variables) ───
 	engineDone := make(chan engineResult, 1)
 	go func() {
-		s, e := sv.Run(ctx)
-		if e != nil {
-			fmt.Fprintf(os.Stderr, "\033[31m✗  %s exited with error: %v\033[0m\n", eng.Name(), e)
-		}
-		engineDone <- engineResult{stats: s, runErr: e}
+		s, e := sv.Run(launchCtx)
+		wasCancelled := launchCtx.Err() != nil
+		engineDone <- engineResult{stats: s, runErr: e, wasCancelled: wasCancelled}
 	}()
 
 	// ── Poll /health (Fix 5) ─────────────────────────────────────────────────
@@ -141,9 +155,8 @@ func (s *LaunchStage) Run(ctx context.Context, state *RunState) error {
 	}
 
 	// ── Shutdown ─────────────────────────────────────────────────────────────
-	// Cancel the engine context so sv.Run() returns, then wait for the goroutine.
-	// ctx cancel is the caller's responsibility (deferred in run.go); we just
-	// drain engineDone so we can safely access stats and close the log.
+	// Cancel the local engine context so sv.Run() returns, then wait for the goroutine.
+	launchCancel()
 	result := <-engineDone
 	if logFile != nil {
 		logFile.Close()
