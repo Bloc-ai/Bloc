@@ -398,7 +398,7 @@ func inferValueType(line string) string {
 	}
 	// PERF-18 (PM-1): strings.ContainsAny checks character sets, not substrings.
 	// Replaced with loop over strings.Contains for proper substring matching.
-	for _, token := range []string{"FNAME", "PATH", "TYPE", "STRATEGY", "PROMPT", "NAME", "TEMPLATE"} {
+	for _, token := range []string{"FNAME", "PATH", "TYPE", "STRATEGY", "PROMPT", "NAME", "TEMPLATE", "HOST", "ADDR", "IP"} {
 		if strings.Contains(line, token) {
 			return engine.ValueTypeString
 		}
