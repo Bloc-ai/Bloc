@@ -1,3 +1,6 @@
+# v0.6.2 (June 2026)
+- Fixed a bug where --host was misclassified as a boolean implicit flag, causing the next flag (--port) to be consumed as the hostname and llama-server to fail on startup. Added HOST, ADDR, and IP to string-value type inference to resolve this.
+
 # v0.6.1 (June 2026)
 - Stabilized Windows and Unix CI tests by replacing flaky shell wrappers (`pause`, `timeout`, `sh -c`) with a native Go `blocker` binary.
 - Bypassed `syscall.SIGTERM` signal usage on Windows to fix a persistent 5-second process kill timeout delay.
