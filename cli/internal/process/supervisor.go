@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 	"time"
@@ -262,6 +263,13 @@ func (sv *Supervisor) kill(cmd *exec.Cmd) {
 		return
 	}
 	if cmd.Process == nil {
+		return
+	}
+	// Windows does not support SIGTERM; cmd.Process.Signal(syscall.SIGTERM) returns
+	// "not supported" and does nothing. This causes Windows to always wait the full
+	// 5-second timeout. We must fallback to Kill() immediately on Windows.
+	if runtime.GOOS == "windows" {
+		_ = cmd.Process.Kill()
 		return
 	}
 	// Graceful: SIGTERM
