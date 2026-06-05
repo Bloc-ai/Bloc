@@ -1,3 +1,19 @@
+# v0.6.0 (June 2026)
+- Core Engine Rebuild & Runtime System Redesign
+  - Unified all inference backends under a common `Engine` interface (`llama.cpp`, `vLLM`, and `SGLang`), allowing seamless plug-and-play capability.
+  - Standardized core CLI execution via a stage-based execution pipeline (`Validate` ➔ `Download` ➔ `Resolve` ➔ `Probe` ➔ `MapFlags` ➔ `Launch` ➔ `Await` ➔ `Present`).
+  - Implemented the `process.Supervisor` shared execution layer to unify container/subprocess lifecycles, signal handling, watchdog-monitored startups, active health polling (`/health`), and concurrent persistent logging under `~/.cache/bloc/logs/`.
+  - Added capability-first flag mapping, dynamically resolving flag naming and syntax at runtime (e.g., `-fa` vs `--flash-attn on`) via help-probing instead of hardcoded string arrays.
+- Security Hardening
+  - Removed dangerous shell execution patterns (`sh -c`) in pre-run script stages, replacing them with a secure allowlist-filtered system execution.
+  - Mitigated path traversal risks by introducing strict containment checking on all user-supplied paths via `filepath.Abs` and prefix validation.
+  - Enhanced API token privacy by preventing Hugging Face tokens from escaping into error messages or system logs.
+  - Implemented environment filtering to scrub sensitive environment variables (such as `LD_PRELOAD`) from child subprocesses.
+- Performance Tuning & Correctness
+  - Cached CPU and VRAM capabilities probing via `sync.Once` to prevent expensive redundant python execution loops.
+  - Gated CUDA-based Docker testing behind a host-level `nvidia-smi` presence check, preventing automatic ~100MB downloads on CPU-only machines.
+  - Resolved nil-map panic vectors in local download operations and fixed deprecated flag compatibility issues with vLLM 0.10.0+.
+
 # v0.5.4 (June 2026)
 - Speculative Decoding & vLLM Reasoning Flag Updates
 - Updated speculative decoding flags to use the modern `llama-server` flags (`--spec-draft-model`, `--spec-draft-n-max`, `--spec-draft-p-min`) instead of deprecated/legacy aliases, preventing capability probe and startup failures on modern builds.

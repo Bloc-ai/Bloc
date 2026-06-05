@@ -23,7 +23,7 @@ By separating the indexing and registry layer from the local runner engine (the 
 bloc/
 ├── cli/                 # Go-based CLI terminal client
 │   ├── cmd/             # Cobra commands (run, cache, images, runtime, models)
-│   ├── internal/        # Core CLI logic (hardware probe, downloader, runtimes)
+│   ├── internal/        # Core CLI logic (hardware probe, downloader, engine, pipeline, process)
 │   └── main.go
 │
 ├── hub/                 # Next.js web application (bloc-hub.com)

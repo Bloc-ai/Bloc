@@ -562,11 +562,11 @@ func marshalRecipe(t *testing.T, r *Recipe) []byte {
 	return []byte(sb.String())
 }
 
-func TestParseLocal_BypassAllowlist(t *testing.T) {
+func TestParseLocal_EnforcesBlocklist(t *testing.T) {
 	yaml := []byte(`
 schema: bloc/v1
 metadata:
-  name: local-bypass-test
+  name: local-blocklist-test
 model:
   download_url: https://huggingface.co/org/model/resolve/main/model.gguf
 engine:
@@ -585,27 +585,12 @@ engine_config:
 		t.Error("expected Parse to fail under strict registry rules for banned flags")
 	}
 
-	// 2. ParseLocal should succeed and bypass deny-list checks
-	r, err := ParseLocal(yaml)
-	if err != nil {
-		t.Errorf("expected ParseLocal to succeed by bypassing strict allowlist checks, got: %v", err)
-	}
-
-	if r.Metadata.Name != "local-bypass-test" {
-		t.Errorf("expected name 'local-bypass-test', got '%s'", r.Metadata.Name)
-	}
-
-	foundLogFile := false
-	foundApiKey := false
-	for _, arg := range r.EngineConfig.ExtraArgs {
-		if arg == "--log-file" {
-			foundLogFile = true
-		}
-		if arg == "--api-key" {
-			foundApiKey = true
-		}
-	}
-	if !foundLogFile || !foundApiKey {
-		t.Error("expected extra_args to successfully preserve all bypassed flags")
+	// 2. ParseLocal should ALSO fail because of SEC-07 (H-6).
+	// We no longer allow local recipes to bypass the extra_args blocklist.
+	_, errLocal := ParseLocal(yaml)
+	if errLocal == nil {
+		t.Errorf("expected ParseLocal to fail due to blocklist enforcement, but it succeeded")
+	} else if !strings.Contains(errLocal.Error(), "--log-file") {
+		t.Errorf("expected ParseLocal error to mention --log-file, got: %v", errLocal)
 	}
 }

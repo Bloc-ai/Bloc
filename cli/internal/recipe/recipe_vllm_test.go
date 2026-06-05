@@ -143,8 +143,10 @@ func TestBuildVLLMFlags_ReasoningOutputs(t *testing.T) {
 		}
 		return false
 	}
-	if !contains(flags, "--enable-reasoning", "") {
-		t.Error("expected --enable-reasoning flag when reasoning_parser is set")
+	// MED-4: --enable-reasoning was removed in vLLM v0.10.0.
+	// The deprecated BuildVLLMFlags now only emits --reasoning-parser, not --enable-reasoning.
+	if contains(flags, "--enable-reasoning", "") {
+		t.Error("BuildVLLMFlags must NOT emit --enable-reasoning (removed in vLLM v0.10.0)")
 	}
 	if !contains(flags, "--reasoning-parser", "deepseek_r1") {
 		t.Error("expected --reasoning-parser deepseek_r1")

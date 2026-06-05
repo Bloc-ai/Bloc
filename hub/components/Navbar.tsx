@@ -366,15 +366,15 @@ export default function Navbar() {
       ? [
           { label: "Registry", href: "/registry" },
           { label: "Feed", href: "/feed" },
-          { label: "Docs", href: "/docs" },
           { label: "Updates", href: "/updates" },
+          { label: "Docs", href: "/docs" },
           { label: "Submit", href: "/registry/submit" },
         ]
       : [
           { label: "Registry", href: "/registry" },
           { label: "Installation", href: "/installation" },
-          { label: "Docs", href: "/docs" },
           { label: "Updates", href: "/updates" },
+          { label: "Docs", href: "/docs" },
           { label: "Blog", href: "/blog" },
         ];
   }, [user]);

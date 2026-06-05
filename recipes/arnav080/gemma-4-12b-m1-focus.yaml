@@ -1,0 +1,102 @@
+schema: "bloc/v1"
+extends: null
+
+# ─── LAYER 1: Registry Metadata (Parsed & Indexed by website) ───────────
+
+metadata:
+  name: "gemma-4-12b-m1-focus"
+  description: "Highly optimized execution of Gemma-4-12B on macOS (M1 16GB UMA) with kernel overrides and disabled mmap."
+  tags:
+    - "metal"
+    - "16gb"
+    - "reasoning"
+  author_notes: |
+    Highly optimized profile for running Gemma-4-12B on macOS Apple Silicon (M1 with 16GB Unified Memory).
+    Pre-run command raises the macOS wired memory limit to 14GB via sysctl, and mmap is disabled to force 
+    loading weights directly into wired VRAM to prevent swapping stutters.
+    NOTE: As post-run lifecycle hooks are not supported in the bloc/v1 schema, you can restore standard memory 
+    limits after closing the server by running: `sudo sysctl iogpu.wired_limit_mb=0`.
+
+model:
+  source: "huggingface:google/gemma-4-12b-it"
+  gguf_repo: "huggingface:unsloth/gemma-4-12b-it-GGUF"
+  file: "gemma-4-12b-it-UD-Q4_K_XL.gguf"
+  download_url: "https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/gemma-4-12b-it-UD-Q4_K_XL.gguf"
+  quantization: "Q4_K_M"  # Closest standard quantization identifier
+  size_gb: 7.37
+  parameters: "12B"
+  architecture: "Dense"
+
+engine:
+  name: "llama.cpp"
+  variant: null
+  tested_commit: "b5350"
+
+hardware:
+  min_vram: "16GB"
+  target_platform: "metal"
+  gpu_count: 1
+  recommended_ram: "16GB"
+
+# ─── LAYER 2: Engine Config (Translated directly to llama-server flags) ────────
+
+engine_config:
+  # [ Context & Memory ]
+  ctx_size: 16384               # -c  Context window length (limited to survive M1 16GB ceiling)
+  flash_attn: true              # --flash-attn on  (value-required form, emitted by CLI)
+  mlock: false                  # --mlock
+  mmap: false                   # --no-mmap (CRITICAL: force weights directly to wired VRAM)
+
+  # [ GPU Offloading ]
+  gpu_layers: 99                # -ngl offload all layers to Metal
+  split_mode: null
+  tensor_split: null
+  main_gpu: 0
+
+  # [ Mixture of Experts (MoE) ]
+  n_cpu_moe: null
+
+  # [ Attention & Batching ]
+  batch_size: 512               # -b Optimize prompt ingestion throughput
+  ubatch_size: 512              # -ub Synchronize micro-batch with batch size
+
+  # [ KV Cache Quantization ]
+  cache_type_k: null
+  cache_type_v: null
+
+  # [ Speculative Decoding ]
+  spec_type: null
+  spec_draft_model: null
+  spec_draft_n_max: null
+  spec_draft_p_min: null
+
+  # [ Threading & Server ]
+  threads: 4                    # -t Pin execution to M1 Firestorm performance cores
+  numa: null
+  host: "127.0.0.1"             # --host
+  port: 8080                    # --port
+  n_parallel: 1
+  jinja: true                   # --jinja Required for thinking mode template to render correctly
+
+  # [ Escape Hatch ]
+  # Pass any additional CLI flags verbatim that are not exposed in the schema above.
+  extra_args:
+    - "--temp"
+    - "1.0"
+    - "--top-p"
+    - "0.95"
+    - "--top-k"
+    - "64"
+    - "--repeat-penalty"
+    - "1.0"
+    - "--reasoning"
+    - "on"
+
+# ─── LAYER 3: Pre-Run System Setup (Executed by CLI prior to launching server) ────────
+
+pre_run:
+  env:
+    GGML_METAL_NDEBUG: "1"      # Suppress Metal diagnostic noise
+    LLAMA_CACHE: "${BLOC_CACHE_DIR}/unsloth_gemma4"
+  commands:
+    - "sudo sysctl iogpu.wired_limit_mb=14336"  # Raise Metal VRAM limit to 14GB

@@ -1,6 +1,6 @@
 //go:build !windows
 
-package runtime
+package llamacpp
 
 import (
 	"os"
@@ -18,5 +18,8 @@ func setSysProcAttr(cmd *exec.Cmd) {
 // killProcessGroup sends SIGTERM to the entire process group of p.
 // The negative PID notation (-pid) is a POSIX convention that targets the group.
 func killProcessGroup(p *os.Process) {
+	if p == nil {
+		return
+	}
 	_ = syscall.Kill(-p.Pid, syscall.SIGTERM)
 }

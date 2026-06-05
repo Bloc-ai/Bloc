@@ -1,0 +1,128 @@
+name: Engine Compatibility
+
+# Runs on every push to main, every PR, and nightly at 03:00 UTC.
+# Purpose: catch engine flag regressions before they reach users.
+#
+# When a nightly run fails:
+#   1. A GitHub issue is opened automatically (see "Open issue on failure" step).
+#   2. The issue links to the failing run and explains the triage process.
+#   3. An engineer must update BuildCapabilities() or the relevant engine package.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cli/**'
+      - '.github/workflows/engine-compat.yml'
+  pull_request:
+    paths:
+      - 'cli/**'
+      - '.github/workflows/engine-compat.yml'
+  schedule:
+    - cron: '0 3 * * *'   # nightly at 03:00 UTC
+
+jobs:
+  # ── Unit tests (no engine required) ────────────────────────────────────────
+  unit:
+    name: Unit tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Run unit tests with race detector
+        working-directory: cli
+        run: go test ./... -race -count=1 -timeout 120s
+
+      - name: Cross-compile for all targets
+        working-directory: cli
+        run: |
+          GOOS=linux  GOARCH=amd64 go build ./...
+          GOOS=darwin GOARCH=arm64 go build ./...
+          GOOS=windows GOARCH=amd64 go build ./...
+        if: runner.os == 'Linux'   # only need one cross-compile pass
+
+  # ── llama.cpp integration tests (requires real binary) ─────────────────────
+  llama-compat:
+    name: llama.cpp compat (${{ matrix.llama_build }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Expand this list as downloadable tagged builds become available.
+        # "latest" always tests the HEAD of the Homebrew formula.
+        llama_build: ['latest']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Install llama.cpp (${{ matrix.llama_build }})
+        run: |
+          if [ "${{ matrix.llama_build }}" = "latest" ]; then
+            brew install llama.cpp
+          else
+            # Future: download a pinned release tarball from GitHub Releases.
+            echo "Pinned builds not yet supported; using latest."
+            brew install llama.cpp
+          fi
+
+      - name: Verify llama-server is in PATH
+        run: llama-server --version || llama-server-cpu --version
+
+      - name: Run integration tests
+        working-directory: cli
+        run: |
+          go test ./internal/engine/llamacpp/... \
+            -tags integration \
+            -timeout 120s \
+            -v \
+            -count=1
+
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-output-${{ matrix.llama_build }}
+          path: /tmp/bloc-test-*.log
+          retention-days: 7
+
+      # Only open an issue on scheduled (nightly) failures — not on PR/push.
+      - name: Open GitHub issue on nightly failure
+        if: failure() && github.event_name == 'schedule'
+        uses: JasonEtco/create-an-issue@v2
+        with:
+          filename: .github/engine-compat-issue-template.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Compatibility matrix summary ───────────────────────────────────────────
+  # This job runs after all matrix jobs and fails if any did.
+  # It provides a single required status check for branch protection.
+  compat-summary:
+    name: Compatibility summary
+    needs: [unit, llama-compat]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [ "${{ needs.unit.result }}" != "success" ] || \
+             [ "${{ needs.llama-compat.result }}" != "success" ]; then
+            echo "One or more compatibility jobs failed."
+            exit 1
+          fi
+          echo "All compatibility jobs passed."

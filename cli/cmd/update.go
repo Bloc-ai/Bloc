@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -81,10 +83,13 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	// Manual self-update flow
 	archiveName := getArchiveName()
 	var downloadURL string
+	var checksumURL string
 	for _, asset := range release.Assets {
-		if asset.Name == archiveName {
+		switch asset.Name {
+		case archiveName:
 			downloadURL = asset.DownloadURL
-			break
+		case "checksums.txt":
+			checksumURL = asset.DownloadURL
 		}
 	}
 
@@ -92,8 +97,29 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("could not find release binary for platform %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 
+	// SEC-04: Checksum verification is mandatory.
+	// The update must never proceed with an unverified binary — a MITM or
+	// corrupted GitHub release would silently replace the running binary.
+	// Fail hard if checksums.txt is absent or cannot be fetched.
+	var expectedSHA256 string
+	if checksumURL == "" {
+		return fmt.Errorf(
+			"update aborted: checksums.txt was not found in the release assets\n" +
+				"  This may indicate a broken release. Please check https://github.com/bloc-org/bloc/releases\n" +
+				"  or install manually.")
+	}
+	var checksumErr error
+	expectedSHA256, checksumErr = fetchExpectedChecksum(checksumURL, archiveName)
+	if checksumErr != nil {
+		return fmt.Errorf(
+			"update aborted: could not fetch checksums.txt: %w\n"+
+				"  Cannot verify binary integrity without a checksum. Aborting for safety.\n"+
+				"  Check your internet connection or install manually.",
+			checksumErr)
+	}
+
 	isZip := strings.HasSuffix(archiveName, ".zip")
-	tmpBinaryPath, err := downloadAndExtract(downloadURL, isZip)
+	tmpBinaryPath, err := downloadAndExtract(downloadURL, isZip, expectedSHA256, archiveName)
 	if err != nil {
 		return fmt.Errorf("update failed: %w", err)
 	}
@@ -155,8 +181,19 @@ func isHomebrewInstall() bool {
 
 func upgradeViaHomebrew() error {
 	fmt.Println("Detected Homebrew installation.")
+
+	brewPath, err := exec.LookPath("brew")
+	if err != nil {
+		return fmt.Errorf("brew not found in PATH")
+	}
+
+	// SEC-08 (H-4): Validate brew path to prevent PATH hijack attacks during update.
+	if !strings.HasPrefix(brewPath, "/opt/homebrew/") && !strings.HasPrefix(brewPath, "/usr/local/") && !strings.HasPrefix(brewPath, "/home/linuxbrew/") {
+		return fmt.Errorf("brew binary at unexpected path %q — refusing to execute", brewPath)
+	}
+
 	fmt.Println("Running: brew upgrade bloc-ai/bloc/bloc")
-	c := exec.Command("brew", "upgrade", "bloc-ai/bloc/bloc")
+	c := exec.Command(brewPath, "upgrade", "bloc-ai/bloc/bloc")
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stderr
 	return c.Run()
@@ -172,7 +209,13 @@ func getArchiveName() string {
 	return fmt.Sprintf("bloc_%s_%s%s", goos, goarch, ext)
 }
 
-func downloadAndExtract(url string, isZip bool) (string, error) {
+// downloadAndExtract fetches the archive, verifies its SHA256 (if expectedSHA256 is non-empty),
+// then extracts the bloc binary into a temp file. Returns the temp file path.
+//
+// FIX-2: SHA256 verification is performed on the raw archive bytes before any
+// extraction occurs, preventing a corrupted or tampered download from replacing
+// the live binary.
+func downloadAndExtract(url string, isZip bool, expectedSHA256, archiveName string) (string, error) {
 	tmpArchive, err := os.CreateTemp("", "bloc-archive-*")
 	if err != nil {
 		return "", err
@@ -203,6 +246,15 @@ func downloadAndExtract(url string, isZip bool) (string, error) {
 	tmpArchive.Close() // Close immediately to release file lock on Windows
 	if err != nil {
 		return "", err
+	}
+
+	// FIX-2: Verify SHA256 before extraction.
+	if expectedSHA256 != "" {
+		fmt.Printf("  Verifying SHA256 checksum...\n")
+		if err := verifyArchiveChecksum(tmpArchiveName, expectedSHA256); err != nil {
+			return "", err
+		}
+		fmt.Printf("  \033[32m✓\033[0m  Checksum verified.\n")
 	}
 
 	tmpBinary, err := os.CreateTemp("", "bloc-binary-*")
@@ -238,6 +290,62 @@ func downloadAndExtract(url string, isZip bool) (string, error) {
 	return tmpBinaryName, nil
 }
 
+// verifyArchiveChecksum hashes the file at archivePath with SHA256 and
+// compares it against expectedSHA256 (hex string, case-insensitive).
+// Returns a descriptive error on mismatch that instructs the user to retry.
+func verifyArchiveChecksum(archivePath, expectedSHA256 string) error {
+	f, err := os.Open(archivePath)
+	if err != nil {
+		return fmt.Errorf("cannot open archive for checksum: %w", err)
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return fmt.Errorf("cannot hash archive: %w", err)
+	}
+	got := hex.EncodeToString(h.Sum(nil))
+	if !strings.EqualFold(got, expectedSHA256) {
+		return fmt.Errorf(
+			"checksum mismatch — download may be corrupted or tampered\n"+
+				"  expected: %s\n"+
+				"  got:      %s\n"+
+				"  Delete any cached files and try again.",
+			expectedSHA256, got,
+		)
+	}
+	return nil
+}
+
+// fetchExpectedChecksum downloads checksums.txt and returns the SHA256 for archiveName.
+// checksums.txt format: "<sha256>  <filename>" (one per line, as produced by sha256sum).
+func fetchExpectedChecksum(checksumURL, archiveName string) (string, error) {
+	req, err := http.NewRequest("GET", checksumURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", "bloc-cli/"+Version)
+	resp, err := apiClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTP %s fetching checksums.txt", resp.Status)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 64*1024)) // 64 KB max
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(string(body), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[1] == archiveName {
+			return fields[0], nil
+		}
+	}
+	return "", fmt.Errorf("checksum for %q not found in checksums.txt", archiveName)
+}
+
 func extractTarGz(r io.Reader, destPath string) error {
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
@@ -261,7 +369,9 @@ func extractTarGz(r io.Reader, destPath string) error {
 			if err != nil {
 				return err
 			}
-			_, err = io.Copy(destFile, tr)
+			// SEC-13 (L-1): Mitigate tar bomb attacks by limiting extracted file size (250MB max)
+			limitReader := io.LimitReader(tr, 250*1024*1024)
+			_, err = io.Copy(destFile, limitReader)
 			destFile.Close()
 			if err != nil {
 				return err
@@ -291,7 +401,9 @@ func extractZip(zipPath, destPath string) error {
 				rc.Close()
 				return err
 			}
-			_, err = io.Copy(destFile, rc)
+			// SEC-13 (L-1): Mitigate zip bomb attacks by limiting extracted file size (250MB max)
+			limitReader := io.LimitReader(rc, 250*1024*1024)
+			_, err = io.Copy(destFile, limitReader)
 			rc.Close()
 			destFile.Close()
 			if err != nil {

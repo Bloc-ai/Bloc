@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
+import { revalidateRegistryCache } from "@/app/actions/revalidate";
 
 interface DeleteRecipeButtonProps {
   creator: string;
@@ -68,6 +69,9 @@ export default function DeleteRecipeButton({
       toast.success("Recipe deleted successfully.", {
         description: `Successfully removed ${creator}/${recipeName} from the registry.`
       });
+      
+      // On-Demand Revalidation
+      await revalidateRegistryCache();
       
       // Redirect to registry list and refresh page data
       router.push("/registry");

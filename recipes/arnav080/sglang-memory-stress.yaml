@@ -1,0 +1,34 @@
+schema: "bloc/v1"
+
+metadata:
+  name: "sglang-memory-stress"
+  description: "Stress test recipe for SGLang Docker engine configuring detailed memory, batching, and routing constraints"
+  tags: ["sglang", "memory", "stress-test"]
+
+model:
+  source: "huggingface:Qwen/Qwen2.5-7B-Instruct"
+  hf_repo: "Qwen/Qwen2.5-7B-Instruct"
+  size_gb: 14.5
+  parameters: "7B"
+  architecture: "Dense"
+
+engine:
+  name: "sglang"
+  runtime: "docker"
+  image: "lmsysorg/sglang:v0.4.0"
+
+hardware:
+  min_vram: "16GB"
+  target_platform: "cuda"
+
+engine_config:
+  host: "0.0.0.0"
+  port: 30000
+  sglang_tensor_parallel_size: 2
+  sglang_context_length: 16384
+  sglang_mem_fraction_static: 0.85
+  sglang_max_running_requests: 128
+  sglang_chunked_prefill_size: 4096
+  sglang_max_prefill_tokens: 8192
+  sglang_kv_cache_dtype: "fp8"
+  sglang_enable_multimodal: false

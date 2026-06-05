@@ -1,6 +1,7 @@
 package hardware
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // SystemInfo holds detected hardware specs.
@@ -69,38 +71,47 @@ func probeMacOS(info *SystemInfo) (*SystemInfo, error) {
 
 	// Apple Silicon: unified memory is both RAM and VRAM.
 	// F-13: Use absolute path for system_profiler.
-	ioregOut, err := exec.Command("/usr/bin/system_profiler", "SPDisplaysDataType", "-json").Output()
-	if err == nil {
-		// Simple regex extraction
-		nameRe := regexp.MustCompile(`"spdisplays_vendor"\s*:\s*"([^"]+)"`)
-		vramRe := regexp.MustCompile(`"spdisplays_vram"\s*:\s*"([^"]+)"`)
+	// FIX-3: Wrap in a 5-second timeout. On hung display services this call can
+	// block for 30–120 seconds. We degrade gracefully to cpu-only on timeout.
+	probeCtx, probeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer probeCancel()
+	spCmd := exec.CommandContext(probeCtx, "/usr/bin/system_profiler", "SPDisplaysDataType", "-json")
+	ioregOut, err := spCmd.Output()
+	if err != nil {
+		// Timed out or failed — degrade to cpu-only. This is non-fatal.
+		info.Platform = "cpu"
+		return info, nil
+	}
 
-		names := nameRe.FindAllStringSubmatch(string(ioregOut), -1)
-		vrams := vramRe.FindAllStringSubmatch(string(ioregOut), -1)
+	// Simple regex extraction
+	nameRe := regexp.MustCompile(`"spdisplays_vendor"\s*:\s*"([^"]+)"`)
+	vramRe := regexp.MustCompile(`"spdisplays_vram"\s*:\s*"([^"]+)"`)
 
-		isAppleSilicon := info.Arch == "arm64"
+	names := nameRe.FindAllStringSubmatch(string(ioregOut), -1)
+	vrams := vramRe.FindAllStringSubmatch(string(ioregOut), -1)
 
-		if isAppleSilicon {
-			// Unified memory: VRAM = total RAM
-			info.Platform = "metal"
-			gpu := GPUInfo{
-				Name:    "Apple Silicon (Unified Memory)",
-				VRAMMB:  info.TotalRAMMB,
-				IsApple: true,
-			}
-			if len(names) > 0 {
-				gpu.Name = names[0][1]
+	isAppleSilicon := info.Arch == "arm64"
+
+	if isAppleSilicon {
+		// Unified memory: VRAM = total RAM
+		info.Platform = "metal"
+		gpu := GPUInfo{
+			Name:    "Apple Silicon (Unified Memory)",
+			VRAMMB:  info.TotalRAMMB,
+			IsApple: true,
+		}
+		if len(names) > 0 {
+			gpu.Name = names[0][1]
+		}
+		info.GPUs = append(info.GPUs, gpu)
+	} else {
+		info.Platform = "metal"
+		for i, nameMatch := range names {
+			gpu := GPUInfo{Name: nameMatch[1]}
+			if i < len(vrams) {
+				gpu.VRAMMB = parseVRAMString(vrams[i][1])
 			}
 			info.GPUs = append(info.GPUs, gpu)
-		} else {
-			info.Platform = "metal"
-			for i, nameMatch := range names {
-				gpu := GPUInfo{Name: nameMatch[1]}
-				if i < len(vrams) {
-					gpu.VRAMMB = parseVRAMString(vrams[i][1])
-				}
-				info.GPUs = append(info.GPUs, gpu)
-			}
 		}
 	}
 

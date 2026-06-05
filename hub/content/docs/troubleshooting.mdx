@@ -39,3 +39,14 @@ Running models on CPU is slower. If you are forced onto CPU fallback:
 * Ensure your processor supports **AVX2** instructions.
 * Free up system RAM by closing resource-heavy background processes.
 * Select recipes using smaller quantizations (e.g. `Q4_K_M`) to reduce memory pressure.
+
+---
+
+### Inspecting Persistent Engine Logs
+
+If a model fails to start or crashes during execution, the CLI automatically saves structured, persistent logs for the engine process. This makes it easy to diagnose obscure errors or out-of-memory crashes that occur inside the engine container. 
+
+You can find all engine logs saved on your local machine at:
+```bash
+~/.cache/bloc/logs/
+```

@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/bloc-org/bloc/internal/config"
-	blocruntime "github.com/bloc-org/bloc/internal/runtime"
+	"github.com/bloc-org/bloc/internal/process"
 )
 
 // CLIVersion is set by the cmd package at startup to avoid circular imports.
@@ -94,23 +94,24 @@ func MaybePromptConsent() error {
 
 // Send fires a telemetry event with a 3-second timeout (fire-and-forget).
 // Safe to call even if telemetry is disabled — it will silently no-op.
-func Send(recipeID string, stats *blocruntime.Stats) {
+func Send(recipeID string, stats *process.Stats) {
 	t, err := config.LoadTelemetry()
 	if err != nil || !t.Enabled {
 		return
 	}
 
+	gen, prefill, peakVRAM, dur, success := stats.Snapshot()
 	payload := Payload{
 		Event:                  "recipe_run_complete",
 		CLIVersion:             CLIVersion,
 		OS:                     runtime.GOOS,
 		Arch:                   runtime.GOARCH,
 		RecipeID:               recipeID,
-		Success:                stats.Success,
-		TokensPerSecGeneration: stats.TokensPerSecGeneration,
-		TokensPerSecPrefill:    stats.TokensPerSecPrefill,
-		PeakVRAMMB:             stats.PeakVRAMMB,
-		DurationSeconds:        stats.Duration.Seconds(),
+		Success:                success,
+		TokensPerSecGeneration: gen,
+		TokensPerSecPrefill:    prefill,
+		PeakVRAMMB:             peakVRAM,
+		DurationSeconds:        dur.Seconds(),
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

@@ -1,0 +1,32 @@
+schema: "bloc/v1"
+
+metadata:
+  name: "vllm-speculative-decoding"
+  description: "Stress test recipe for native vLLM engine utilizing draft models for speculative decoding"
+  tags: ["speculative", "vllm", "stress-test"]
+
+model:
+  source: "huggingface:Qwen/Qwen2.5-1.5B-Instruct"
+  hf_repo: "Qwen/Qwen2.5-1.5B-Instruct"
+  size_gb: 3.1
+  parameters: "1.5B"
+  architecture: "Dense"
+
+engine:
+  name: "vllm"
+  runtime: "native"
+  version: "0.9.1"
+
+hardware:
+  min_vram: "8GB"
+  target_platform: "cuda"
+
+engine_config:
+  host: "127.0.0.1"
+  port: 8082
+  tensor_parallel_size: 1
+  gpu_memory_utilization: 0.85
+  max_model_len: 4096
+  speculative_model: "Qwen/Qwen2.5-0.5B-Instruct"
+  num_speculative_tokens: 5
+  trust_remote_code: true

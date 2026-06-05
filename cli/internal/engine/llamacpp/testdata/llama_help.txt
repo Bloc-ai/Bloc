@@ -1,0 +1,126 @@
+usage: llama-server [options]
+
+general:
+
+  -h,    --help, --usage          print usage and exit
+  -v,    --verbose                print extra information
+         --verbosity INT          set specific verbosity level (default: 0)
+         --log-format {text,json} log output format (default: json)
+         --log-file FNAME         log to file
+         --no-display-prompt      don't print prompt in interactive mode
+  -co,   --color                  colorize output to distinguish prompt and user input (default: false)
+  -s,    --seed SEED              RNG seed (default: -1, use random seed for < 0)
+  -t,    --threads N              number of threads to use during generation (default: -1)
+  -tb,   --threads-batch N        number of threads to use during batch and prompt processing (default: same as --threads)
+  -td,   --threads-draft N        number of threads to use during generation (default: same as --threads)
+  -tbd,  --threads-batch-draft N  number of threads to use during batch and prompt processing (default: same as --threads)
+         --cpu-mask M             CPU affinity mask: arbitrarily long hex. Complements cpu-range (default: "")
+         --cpu-range lo-hi        range of CPUs for affinity. Complements --cpu-mask
+         --cpu-strict <0|1>       use strict CPU placement (default: 0)
+         --prio N                 set process/thread priority : 0-normal, 1-medium, 2-high, 3-realtime (default: 0)
+         --poll <0...100>         use polling level to wait for work (0 - no polling, default: 50)
+         --cpu-mask-draft M       draft model CPU affinity mask. Complements cpu-range-draft (default: "")
+         --cpu-range-draft lo-hi  draft model range of CPUs for affinity. Complements --cpu-mask-draft
+         --cpu-strict-draft <0|1> use strict CPU placement for draft model (default: 0)
+         --prio-draft N           set draft process/thread priority : 0-normal, 1-medium, 2-high, 3-realtime (default: 0)
+         --poll-draft <0...100>   use polling level for draft (0 - no polling, default: 50)
+  -m,    --model FNAME            model path (default: models/$filename with /api/show, /api/tags, or --model)
+  -md,   --model-draft FNAME      draft model for speculative decoding (default: unused)
+  -a,    --alias NAME             model name alias
+         --lora FNAME             apply LoRA adapter (implies --no-mmap)
+         --lora-scaled FNAME S    apply LoRA adapter with user defined scaling S (implies --no-mmap)
+         --lora-init-without-apply load LoRA adapters without applying them (apply via POST /lora-adapters) (default: disabled)
+         --control-vector FNAME   add a control vector
+         --control-vector-scaled FNAME S add a control vector with user defined scaling S
+         --control-vector-layer-range START END layer range to apply the control vector(s) to, start and end inclusive
+  -b,    --batch-size N           logical maximum batch size (default: 2048)
+  -ub,   --ubatch-size N          physical maximum batch size (default: 512)
+         --keep N                 number of tokens to keep from the initial prompt (default: 0, -1 = all)
+         --chunks N               max number of chunks to process (default: -1, -1 = all)
+  -fa,   --flash-attn [on|off|auto]  flash attention (default: on)
+         --no-mmap                do not memory-map model (slower load but may reduce pageouts if not using mlock)
+         --mlock                  force system to keep model in RAM rather than swapping or compressing
+  -ngl,  --gpu-layers N          number of layers to store in VRAM
+  -ngld, --gpu-layers-draft N    number of layers to store in VRAM for the draft model
+         --split-mode {none,layer,row}  how to split the model across multiple GPUs; one of:
+                                    - none: use one GPU only
+                                    - layer (default): split layers and KV across GPUs
+                                    - row: split rows across GPUs
+         --tensor-split SPLIT    fraction of the model to offload to each GPU, comma-separated list of proportions, e.g. 3,1
+  -mg,   --main-gpu i            the GPU to use for the model (with split-mode = none),
+                                    or for intermediate results and KV (with split-mode = row) (default: 0)
+         --check-tensors          check model tensor data for invalid values (default: false)
+         --override-kv KEY=TYPE:VALUE  advanced option to override model metadata by key. may be specified multiple times;
+                                    types: int, float, bool, str. example: --override-kv tokenizer.ggml.add_bos_token=bool:false
+         --lora-base FNAME        optional model to use as a base for the layers modified by the LoRA adapter
+  -i,    --interactive            run in interactive mode (default: false)
+         --interactive-first      wait for user input before starting generation (default: false)
+  -ins,  --instruct               run in instruction following mode (default: false)
+         --multiline-input        allows you to write or paste multiple lines without ending each in '\'
+  -r,    --reverse-prompt PROMPT  halt generation at PROMPT, return control in interactive mode
+         --color                  colorize output to distinguish prompt and user input (default: false)
+  -sp,   --special               special tokens output enabled (default: false)
+         --no-warmup              skip warming up the model with an empty run
+  -c,    --ctx-size N             KV cache size of the model context (default: 0, 0 = loaded from model)
+  -n,    --predict N              number of tokens to predict (default: -1, -1 = infinity, -2 = until context filled)
+         --no-context-shift       disables context shift on inifinite text generation (default: disabled)
+         --swa-full               use full-size SWA cache (default: disabled)
+  -e,    --escape                 process escape sequences (default: true)
+         --no-escape              do not process escape sequences
+  -f,    --file FNAME             a file to read the prompt from
+         --in-file FNAME          an additional file to read the prompt from
+         --binary-file FNAME      binary file containing the prompt
+         --bf16                   use bfloat16 instead of float32 for memory kv (default: disabled)
+         --host HOST              ip address to listen (default: 127.0.0.1)
+         --port PORT              port to listen (default: 8080)
+         --path PATH              path from which to serve static files (default: )
+  -to,   --timeout N             server read/write timeout in seconds (default: 600)
+         --embeddings             restrict to only support embedding use case; use only with dedicated embedding models (default: disabled)
+         --metrics                enable prometheus compatible metrics endpoint (default: disabled)
+         --no-slots               disables slots monitoring endpoint (default: slots monitoring enabled)
+         --slot-save-path PATH    path to save slot kv cache (default: disabled)
+         --chat-template JINJA_TEMPLATE  set custom jinja chat template (default: template taken from model's metadata)
+                                    if suffix/prefix/middle are specified, the chat template will be disabled
+                                    only commonly used templates are accepted:
+                                    https://github.com/ggerganov/llama.cpp/wiki/Templates-supported-by-llama_chat_apply_template
+         --jinja                  activate jinja template processing (default: disabled)
+  -np,   --parallel N            number of parallel sequences to decode (default: 1)
+         --sequences N            number of sequences to decode (default: 1)
+  -cb,   --cont-batching         enable continuous batching (a.k.a. dynamic batching) (default: enabled)
+         --mmproj FILE            path to a multimodal projector file for LLaVA. see examples/llava/README.md
+         --mlock                  force system to keep model in RAM rather than swapping or compressing
+  -nkvo, --no-kv-offload         disable KV offload
+  -ctk,  --cache-type-k TYPE     KV cache data type for K (default: f16)
+  -ctv,  --cache-type-v TYPE     KV cache data type for V (default: f16)
+  -dt,   --defrag-thold N        KV cache defragmentation threshold (default: 0.1, < 0 - disabled)
+         --numa STRATEGY          attempt optimizations that help on some NUMA systems:
+                                    distribute: spread execution evenly over all nodes
+                                    isolate: only spawn threads on CPUs on the node that execution started on
+                                    numactl: use the CPU map provided by numactl
+                                    if run without this previously, it is recommended to drop the system page cache before using this
+                                    see https://github.com/ggerganov/llama.cpp/issues/1437
+         --spec-type TYPE         speculative decoding type (default: none)
+                                    draft: use a smaller draft model to predict tokens
+                                    draft-mtp: multi-token prediction draft model
+                                    ngram-simple: simple n-gram speculation using recent tokens
+                                    ngram-mod: modular n-gram speculation
+                                    ngram-map-k4v: mapped n-gram speculation
+  -md,   --spec-draft-model FNAME  draft model for speculative decoding (default: unused)
+         --spec-draft-n-max N     max number of tokens to draft for speculative decoding (default: 5)
+         --spec-draft-n-min N     min number of tokens to draft for speculative decoding (default: 0)
+         --spec-draft-p-min P     minimum speculative decoding probability (greedy) (default: 0.9)
+         --n-cpu-moe N            number of experts to run on CPU for MoE models (default: 0)
+  -npp,  --n-print-progress N    number of tokens to print progress for (default: 0)
+         --rope-scaling {none,linear,yarn}  RoPE frequency scaling method, defaults to linear unless specified by the model
+         --rope-freq-base N       RoPE base frequency, used by NTK-aware scaling (default: loaded from model)
+         --rope-freq-scale N      RoPE frequency scaling factor, expands context by a factor of 1/N (default: loaded from model)
+         --yarn-orig-ctx N        YaRN: original context size of model (default: 0 = model training context window size)
+         --yarn-ext-factor N      YaRN: extrapolation mix factor (default: -1.0, 0.0 = full interpolation)
+         --yarn-attn-factor N     YaRN: scale sqrt(n_ctx)/sqrt(n_orig_ctx) attention factor (default: 1.0)
+         --yarn-beta-fast N       YaRN: low correction dim or beta fast (default: 32.0)
+         --yarn-beta-slow N       YaRN: high correction dim or beta slow (default: 1.0)
+         --grp-attn-n N           group-attention factor (default: 1)
+         --grp-attn-w N           group-attention width (default: 512)
+         --log-disable            disables logging
+         --simple-io              use basic IO for better compatibility in coarser terminals
+         --verbose-prompt         print a verbose prompt before generation (default: false)

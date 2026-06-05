@@ -1,0 +1,99 @@
+schema: "bloc/v1"
+extends: null
+
+# ─── LAYER 1: Registry Metadata (Parsed & Indexed by website) ───────────
+
+metadata:
+  name: "gemma-4-12b-it-q4-k-m"
+  description: "Gemma 4 12B Instruct Q4_K_M optimized for local inference with thinking mode."
+  tags:
+    - "cuda"
+    - "8gb"
+    - "reasoning"
+  author_notes: |
+    Optimized configuration for running Google's Gemma 4 12B Instruct (Q4_K_M quantization) locally.
+    Enables llama.cpp thinking mode/jinja chat templates and configures flash attention.
+    Requires at least 8GB VRAM (all layers offloaded to GPU with -ngl 99) and 16GB system RAM.
+
+model:
+  source: "huggingface:google/gemma-4-12b-it"
+  gguf_repo: "huggingface:unsloth/gemma-4-12b-it-GGUF"
+  file: "gemma-4-12b-it-Q4_K_M.gguf"
+  download_url: "https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/main/gemma-4-12b-it-Q4_K_M.gguf"
+  quantization: "Q4_K_M"
+  size_gb: 7.12
+  parameters: "12B"
+  architecture: "Dense"
+
+engine:
+  name: "llama.cpp"
+  variant: null
+  tested_commit: "b5350"
+
+hardware:
+  min_vram: "8GB"
+  target_platform: "cuda"
+  gpu_count: 1
+  recommended_ram: "16GB"
+
+# ─── LAYER 2: Engine Config (Translated directly to llama-server flags) ────────
+
+engine_config:
+  # [ Context & Memory ]
+  ctx_size: 8192                # -c  Context window length
+  flash_attn: true              # --flash-attn on  (value-required form, emitted by CLI)
+  mlock: false                  # --mlock Prevent OS from swapping weights to disk
+  mmap: true                    # mmap enabled (set false to disable mmap)
+
+  # [ GPU Offloading ]
+  gpu_layers: 99                # -ngl Number of layers to offload to GPU. 99 = all layers.
+  split_mode: null              # --split-mode  null | "none" | "layer" | "row" (multi-GPU)
+  tensor_split: null            # -ts Proportional weight split (e.g., "60,40" for dual GPU)
+  main_gpu: 0                   # -mg The GPU handling KV cache overhead and final logits
+
+  # [ Mixture of Experts (MoE) ]
+  n_cpu_moe: null               # --n-cpu-moe Number of expert blocks to offload to CPU RAM
+
+  # [ Attention & Batching ]
+  batch_size: 512               # -b Prompt ingestion batch size
+  ubatch_size: 512              # -ub Micro-batch size (smaller frees memory on tight VRAM)
+
+  # [ KV Cache Quantization ]
+  cache_type_k: null            # -ctk Key cache compression: f16 | q8_0 | q4_0
+  cache_type_v: null            # -ctv Value cache compression: f16 | q8_0 | q4_0
+
+  # [ Speculative Decoding ]
+  spec_type: null               # --spec-type null | "draft" | "draft-mtp"
+  spec_draft_model: null        # -md Path or huggingface pointer to draft model
+  spec_draft_n_max: null        # --spec-draft-n-max Max draft tokens to evaluate
+  spec_draft_p_min: null        # --spec-draft-p-min Acceptance threshold (0.0 to 1.0)
+
+  # [ Threading & Server ]
+  threads: 4                    # -t CPU threads to allocate (match physical cores exactly)
+  numa: null                    # --numa Node allocation for multi-socket systems
+  host: null                    # --host IP to bind server to
+  port: null                    # --port Port to run server on
+  n_parallel: null              # -np Parallel inference slots
+  jinja: null                   # --jinja Required for models utilizing Jinja2 chat templates
+
+  # [ Escape Hatch ]
+  # Pass any additional CLI flags verbatim that are not exposed in the schema above.
+  extra_args:
+    - "--temp"
+    - "1.0"
+    - "--top-k"
+    - "64"
+    - "--top-p"
+    - "0.95"
+    - "--min-p"
+    - "0.01"
+    - "--repeat-penalty"
+    - "1.0"
+    - "--reasoning"
+    - "on"
+
+# ─── LAYER 3: Pre-Run System Setup (Executed by CLI prior to launching server) ────────
+
+pre_run:
+  env: {}
+  commands: []

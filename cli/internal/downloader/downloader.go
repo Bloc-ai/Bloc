@@ -104,8 +104,14 @@ func NewManager(cacheDir string) (*Manager, error) {
 		}
 	}
 	m := &Manager{cacheDir: cacheDir}
-	// P-09: Pre-load index once
-	m.index, _ = m.readIndexFromDisk()
+	// LOW-7: Always initialize m.index. If readIndexFromDisk returns an I/O error
+	// (not just ErrNotExist), silently swallowing it with _ leaves m.index nil,
+	// causing a nil map panic on the next write. Fallback to an empty index.
+	if idx, err := m.readIndexFromDisk(); err == nil {
+		m.index = idx
+	} else {
+		m.index = make(CacheIndex)
+	}
 	return m, nil
 }
 
@@ -309,11 +315,15 @@ func (m *Manager) EnsureDownloaded(ctx context.Context, friendlyName, downloadUR
 				hasher.Write(buf[:n])
 				downloaded += int64(n)
 
-				if progress != nil && time.Since(lastReport) > 200*time.Millisecond {
-					elapsed := time.Since(startTime).Seconds()
-					speedMBs := float64(downloaded-startByte) / 1024 / 1024 / elapsed
-					progress(downloaded, totalBytes, speedMBs)
-					lastReport = time.Now()
+				// PERF-22 (PM-7): Call time.Now() once per chunk instead of twice.
+				if progress != nil {
+					now := time.Now()
+					if now.Sub(lastReport) > 200*time.Millisecond {
+						elapsed := now.Sub(startTime).Seconds()
+						speedMBs := float64(downloaded-startByte) / 1024 / 1024 / elapsed
+						progress(downloaded, totalBytes, speedMBs)
+						lastReport = now
+					}
 				}
 			}
 			if readErr == io.EOF {
@@ -363,12 +373,20 @@ func (m *Manager) EnsureDownloaded(ctx context.Context, friendlyName, downloadUR
 			return finalPath, nil
 		}
 
+		// SEC-15 (L-5): Strip query parameters (which may contain signed CDN auth tokens)
+		// before persisting the URL to disk.
+		cleanURL := downloadURL
+		if u, err := url.Parse(downloadURL); err == nil {
+			u.RawQuery = ""
+			cleanURL = u.String()
+		}
+
 		// P-09: Update in-memory index and persist to disk once per download
 		entry := Entry{
 			SHA256:       actualSHA256,
 			FriendlyName: friendlyName,
 			SizeBytes:    downloaded,
-			DownloadURL:  downloadURL,
+			DownloadURL:  cleanURL,
 			CachedAt:     time.Now(),
 		}
 		m.indexMu.Lock()
@@ -550,8 +568,13 @@ func (m *Manager) EnsureRepoDownloaded(
 	downloadCtx, downloadCancel := context.WithCancel(ctx)
 	defer downloadCancel()
 
+	// M-4: Track worker goroutines with a WaitGroup so they are guaranteed to
+	// exit before this function returns, even on early cancellation.
+	var workerWg sync.WaitGroup
 	for i := 0; i < workers; i++ {
+		workerWg.Add(1)
 		go func() {
+			defer workerWg.Done()
 			for sib := range jobs {
 				err := m.downloadRepoFile(downloadCtx, hfRepo, revision, repoDir, sib)
 				results <- result{filename: sib.Rfilename, err: err}
@@ -563,6 +586,12 @@ func (m *Manager) EnsureRepoDownloaded(
 		jobs <- sib
 	}
 	close(jobs)
+	// Wait for all workers to finish after jobs channel is closed and results collected.
+	// We start a goroutine to close results once workers are done.
+	go func() {
+		workerWg.Wait()
+		close(results)
+	}()
 
 	// PERF-02: Pre-build a filename→size map so result collection is O(1)
 	// instead of O(n²). For a 500-file repo the old code did 500×500 = 250,000
@@ -614,10 +643,27 @@ func (m *Manager) downloadRepoFile(ctx context.Context, hfRepo, revision, repoDi
 		return fmt.Errorf("security: unsafe rfilename %q rejected", sib.Rfilename)
 	}
 	localPath := filepath.Join(repoDir, sib.Rfilename)
-	absRepo, _ := filepath.Abs(repoDir)
-	absLocal, _ := filepath.Abs(localPath)
+	// H-5: Check Abs errors explicitly — a failure would let the prefix check
+	// pass trivially. Also resolve symlinks (EvalSymlinks) to prevent a
+	// symlink inside repoDir pointing outside the cache directory.
+	absRepo, err := filepath.Abs(repoDir)
+	if err != nil {
+		return fmt.Errorf("security: cannot resolve repo directory %q: %w", repoDir, err)
+	}
+	absLocal, err := filepath.Abs(localPath)
+	if err != nil {
+		return fmt.Errorf("security: cannot resolve local path for %q: %w", sib.Rfilename, err)
+	}
 	if !strings.HasPrefix(absLocal, absRepo+string(filepath.Separator)) {
 		return fmt.Errorf("security: rfilename %q escapes repo directory — download rejected", sib.Rfilename)
+	}
+	// H-5: After the prefix check passes on the clean path, also verify that
+	// if the file already exists as a symlink it doesn't escape the repo dir.
+	if resolved, symlinkErr := filepath.EvalSymlinks(localPath); symlinkErr == nil {
+		resolvedAbs, _ := filepath.Abs(resolved)
+		if !strings.HasPrefix(resolvedAbs, absRepo+string(filepath.Separator)) {
+			return fmt.Errorf("security: rfilename %q resolves via symlink outside repo directory — rejected", sib.Rfilename)
+		}
 	}
 
 	// Create parent subdirectories if needed (e.g. "pytorch_model-00001-of-00008.safetensors")
@@ -779,10 +825,8 @@ func (m *Manager) ClearCache() error {
 
 // DeleteCachedModel deletes a specific cached GGUF model and updates index.json.
 func (m *Manager) DeleteCachedModel(friendlyName string) error {
-	m.indexMu.Lock()
-	defer m.indexMu.Unlock()
-
-	// Find the entry in index
+	// PERF-26 (PL-3): Find the entry under an RLock to avoid blocking readers during O(n) scan
+	m.indexMu.RLock()
 	var targetSHA string
 	for sha, e := range m.index {
 		if e.FriendlyName == friendlyName {
@@ -790,13 +834,19 @@ func (m *Manager) DeleteCachedModel(friendlyName string) error {
 			break
 		}
 	}
+	m.indexMu.RUnlock()
 
 	if targetSHA != "" {
-		delete(m.index, targetSHA)
-		_ = m.writeIndexToDiskLocked()
-		
-		// Remove physical file
-		_ = os.Remove(filepath.Join(m.cacheDir, "models", targetSHA))
+		m.indexMu.Lock()
+		// Re-verify under write lock
+		if e, exists := m.index[targetSHA]; exists && e.FriendlyName == friendlyName {
+			delete(m.index, targetSHA)
+			_ = m.writeIndexToDiskLocked()
+			
+			// Remove physical file
+			_ = os.Remove(filepath.Join(m.cacheDir, "models", targetSHA))
+		}
+		m.indexMu.Unlock()
 	}
 
 	// Also remove symlink
@@ -851,12 +901,16 @@ func (m *Manager) writeIndexToDiskLocked() error {
 // writeIndexToDisk persists the in-memory index to disk with thread-safety.
 // P-09: Called once per download completion, not on every chunk.
 func (m *Manager) writeIndexToDisk() error {
-	m.indexMu.RLock()
-	defer m.indexMu.RUnlock()
+	m.indexMu.Lock() // PM-5: Use exclusive Lock so two goroutines don't write to disk concurrently
+	defer m.indexMu.Unlock()
 	return m.writeIndexToDiskLocked()
 }
 
 func sanitizeFilename(name string) string {
+	// SEC-16 (L-3): Cap filename length to prevent filesystem errors or log spam
+	if len(name) > 100 {
+		name = name[:100]
+	}
 	return strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == '.' {
 			return r

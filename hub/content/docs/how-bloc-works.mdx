@@ -3,6 +3,8 @@ title: How Bloc Works
 description: Learn about the core design principles, execution lifecycle, and architecture of Bloc.
 ---
 
+import { Step, Steps } from 'fumadocs-ui/components/steps';
+
 Bloc is designed as a version-agnostic, local-first orchestrator for local AI model deployments. It doesn't fight the rapid velocity of upstream engines like `llama.cpp` or `vLLM` — instead, it decouples metadata indexing from execution logic.
 
 ---
@@ -41,41 +43,44 @@ When you run `bloc deploy`, the **Bloc CLI** opens this "envelope", resolves the
 
 When a user runs a command like `bloc deploy arnav/llama-3-8b`, the following sequence executes locally:
 
-```mermaid
-sequenceDiagram
-    participant User as User Terminal
-    participant CLI as Bloc CLI
-    participant Hub as Bloc Hub API
-    participant HF as Hugging Face
-    participant Engine as Engine Runner (Local / Docker)
+<Steps>
 
-    User->>CLI: bloc deploy arnav/llama-3-8b
-    CLI->>Hub: Get recipe YAML
-    Hub-->>CLI: Return recipe payload
-    CLI->>CLI: Resolve runtime (native vs docker) and engine (llama.cpp vs vLLM)
-    CLI->>CLI: Probe local hardware & check cache for model files
-    alt Files not in cache
-        CLI->>HF: Download weights (GGUF or HF Repo)
-        HF-->>CLI: Stream model files to cache
-    end
-    CLI->>User: Request approval for pre_run.commands (if any)
-    User-->>CLI: Approve/Confirm
-    alt vLLM with trust_remote_code: true
-        CLI->>User: Prompt security gate confirmation for custom Python code execution
-        User-->>CLI: Approve/Confirm
-    end
-    CLI->>CLI: Run pre_run.env & pre_run.commands
-    CLI->>Engine: Launch engine process (native command or Docker container)
-    Engine-->>User: Local OpenAI-compatible API server listening on configured port
-```
+<Step>
+### Validate
+The CLI retrieves the recipe YAML from the Hub API and validates the schema.
+</Step>
 
-1. **Fetch**: The CLI retrieves the recipe YAML from the Hub API.
-2. **Resolve Runtime & Engine**: The CLI determines the designated engine (`llama.cpp` or `vllm`) and runtime (`native` or `docker`).
-3. **Download**: The CLI checks your local cache directory (`~/.cache/bloc/models` or `~/.cache/bloc/repos`). If the weights are missing, it downloads either the single GGUF file or the entire Hugging Face repository (safetensors, configurations, tokenizers) using your local credentials.
-4. **Pre-Run & Safety Gates**: 
-   * The CLI prompts you to confirm any pre-run scripts.
-   * If the model uses vLLM and requires custom python code execution (`trust_remote_code: true`), the CLI forces a security prompt gate requiring explicit confirmation.
-5. **Launch**: The CLI compiles the structured parameters into the designated engine flags and launches the server. If `runtime: docker` is configured, it automatically pulls the image, configures GPU passthrough (via NVIDIA Container Toolkit), mounts cache directories, and runs the container.
+<Step>
+### Download
+The CLI checks your local cache directory (`~/.cache/bloc/models` or `~/.cache/bloc/repos`). If the weights are missing, it downloads either the single GGUF file or the entire Hugging Face repository (safetensors, configurations, tokenizers) using your local credentials.
+</Step>
+
+<Step>
+### Resolve Engine
+The CLI determines the designated engine plugin (`llama.cpp` or `vllm`) and runtime mode (`native` or `docker`).
+</Step>
+
+<Step>
+### Probe Capabilities
+The CLI probes the local hardware and automatically detects the engine's current capabilities (e.g., by parsing `--help` or querying the container) to ensure the exact flag syntax matches your installed version.
+</Step>
+
+<Step>
+### Map Flags & Pre-Run
+The CLI maps the recipe features into exact command-line arguments. It prompts you to confirm any pre-run scripts or custom code execution.
+</Step>
+
+<Step>
+### Launch & Await
+A shared `process.Supervisor` launches the engine process, streams logs, and actively polls the `/health` endpoint until the server is fully ready.
+</Step>
+
+<Step>
+### Present
+Once ready, the CLI reports success and presents the local URL to the user.
+</Step>
+
+</Steps>
 
 ---
 

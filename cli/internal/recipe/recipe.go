@@ -26,6 +26,10 @@ var hfRepoRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.\-]{0,99}/[a-zA-Z0-9]
 // tooling) from appearing in the version field.
 var semverRe = regexp.MustCompile(`^[0-9]+\.[0-9]+(\.[0-9]+)?([\-+][a-zA-Z0-9.\-+]{1,50})?$`)
 
+// metadataNameRe validates metadata.name fields (max 64 chars, safe chars only).
+// SEC-14 (L-2): Prevents injection via crafted name fields.
+var metadataNameRe = regexp.MustCompile(`^[a-zA-Z0-9.\-_]{1,64}$`)
+
 // Recipe is the parsed representation of a bloc/v1 YAML recipe file.
 type Recipe struct {
 	Schema       string      `yaml:"schema"`
@@ -230,8 +234,12 @@ func parse(data []byte, isLocal bool) (*Recipe, error) {
 	if r.Schema != "bloc/v1" {
 		return nil, fmt.Errorf("unsupported schema %q: only bloc/v1 is supported", r.Schema)
 	}
+	// SEC-14 (L-2): Validate metadata.name format and length (max 64).
 	if r.Metadata.Name == "" {
 		return nil, fmt.Errorf("recipe is missing metadata.name")
+	}
+	if !metadataNameRe.MatchString(r.Metadata.Name) {
+		return nil, fmt.Errorf("metadata.name %q is invalid: must be 1-64 characters long and use only alphanumerics, dots, dashes, and underscores", r.Metadata.Name)
 	}
 	// Fix #2: Accept either download_url (llama.cpp GGUF) or hf_repo (vLLM full repo).
 	// Previously required download_url strictly, which blocked all vLLM recipes.
@@ -243,11 +251,11 @@ func parse(data []byte, isLocal bool) (*Recipe, error) {
 	if err := validateEngineConfig(&r); err != nil {
 		return nil, err
 	}
-	// F-03: Validate extra_args against the allowlist only if not local
-	if !isLocal {
-		if err := validateExtraArgs(r.EngineConfig.ExtraArgs); err != nil {
-			return nil, err
-		}
+	// SEC-07 (H-6): Validate extra_args against the blocklist for ALL recipes
+	// (both local and registry). Prevents a local developer from accidentally
+	// or maliciously passing dangerous flags like --hf-token or --rpc.
+	if err := validateExtraArgs(r.EngineConfig.ExtraArgs); err != nil {
+		return nil, err
 	}
 	// F-15: Validate Docker image tag format at parse time.
 	// Prevents injection via crafted recipe: only [a-z0-9/_:.-] chars, max 200.
@@ -286,7 +294,54 @@ func parse(data []byte, isLocal bool) (*Recipe, error) {
 			p,
 		)
 	}
+	// SEC-03: Validate pre_run.env keys at parse time.
+	// This is enforced for both local and registry recipes — dangerous env keys
+	// are never acceptable regardless of recipe source.
+	if err := validatePreRunEnv(r.PreRun.Env); err != nil {
+		return nil, err
+	}
 	return &r, nil
+}
+
+// preRunEnvKeyRe is the allowlist for pre_run.env key names.
+// SEC-03: Only identifiers matching [A-Za-z_][A-Za-z0-9_]* are valid.
+var preRunEnvKeyRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// preRunDangerousEnvKeys is the blocklist of env keys that can hijack the
+// dynamic linker or interpreter before user code runs.
+var preRunDangerousEnvKeys = map[string]bool{
+	"LD_PRELOAD":            true,
+	"LD_LIBRARY_PATH":       true,
+	"LD_AUDIT":              true,
+	"LD_DEBUG":              true,
+	"DYLD_INSERT_LIBRARIES": true,
+	"DYLD_LIBRARY_PATH":     true,
+	"DYLD_FRAMEWORK_PATH":   true,
+	"PYTHONPATH":            true,
+	"PYTHONSTARTUP":         true,
+	"RUBYOPT":               true,
+	"BASH_ENV":              true,
+	"ENV":                   true,
+	"CDPATH":                true,
+	"NODE_OPTIONS":          true,
+	"PERL5OPT":              true,
+}
+
+// validatePreRunEnv checks that all pre_run.env keys are safe identifiers and
+// do not attempt to override dangerous linker/interpreter env vars.
+func validatePreRunEnv(env map[string]string) error {
+	for k := range env {
+		if !preRunEnvKeyRe.MatchString(k) {
+			return fmt.Errorf(
+				"pre_run.env key %q is invalid: must match [A-Za-z_][A-Za-z0-9_]*", k)
+		}
+		if preRunDangerousEnvKeys[k] {
+			return fmt.Errorf(
+				"pre_run.env key %q is not permitted: setting this variable could "+
+					"compromise system security (dynamic linker / interpreter hijack)", k)
+		}
+	}
+	return nil
 }
 
 // validateEngineConfig enforces cross-engine config constraints (Fix #3).
@@ -416,6 +471,7 @@ func validateExtraArgs(args []string) error {
 
 // BuildFlags converts EngineConfig into the ordered list of llama-server flags.
 // null / zero / false values are omitted unless semantically required.
+// Deprecated: use internal/engine package instead.
 func (r *Recipe) BuildFlags() []string {
 	cfg := r.EngineConfig
 	var flags []string
@@ -482,6 +538,7 @@ func (r *Recipe) BuildFlags() []string {
 // RequiredFlags returns the set of llama-server flags this recipe needs,
 // derived from engine_config values and extra_args.
 // Used by the capability probe to check the local binary.
+// Deprecated: use internal/engine package instead.
 func (r *Recipe) RequiredFlags() map[string]struct{} {
 	required := make(map[string]struct{})
 	cfg := r.EngineConfig
@@ -537,6 +594,7 @@ func (r *Recipe) RequiredFlags() map[string]struct{} {
 // NativeVLLMRuntime.Run (as --model <path>) before this slice is appended.
 // F-19: TrustRemoteCode is NOT injected here — run.go gates it with an
 // explicit user confirm prompt before passing --trust-remote-code to this list.
+// Deprecated: use internal/engine package instead.
 func (r *Recipe) BuildVLLMFlags() []string {
 	cfg := r.EngineConfig
 	var flags []string
@@ -583,7 +641,9 @@ func (r *Recipe) BuildVLLMFlags() []string {
 	// ── Chat template & tool calling ──────────────────────────────────────────
 	add("--tool-call-parser", cfg.ToolCallParser)
 	if cfg.ReasoningParser != "" {
-		flags = append(flags, "--enable-reasoning", "--reasoning-parser", cfg.ReasoningParser)
+		// MED-4: --enable-reasoning was removed in vLLM v0.10.0.
+		// The active vllm/flags.go already omits it; sync this deprecated path.
+		flags = append(flags, "--reasoning-parser", cfg.ReasoningParser)
 	}
 
 	// ── Concurrency (maps to llama.cpp -np equivalent) ────────────────────────
@@ -608,6 +668,7 @@ func (r *Recipe) BuildVLLMFlags() []string {
 // runtime always controls the network binding.
 // SGLangCUDAVisibleDevices is not emitted as a flag — it is injected into the
 // container environment as CUDA_VISIBLE_DEVICES by the runtime.
+// Deprecated: use internal/engine package instead.
 func (r *Recipe) BuildSGLangFlags() []string {
 	cfg := r.EngineConfig
 	var flags []string

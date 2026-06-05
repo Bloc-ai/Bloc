@@ -21,6 +21,10 @@ An **Engine** is the core inference library that loads the weights and handles t
 * **Weights Format:** Full Hugging Face repositories containing Safetensors and configuration files.
 * **Highlights:** PagedAttention cache management, multi-GPU Tensor Parallelism, and high throughput under concurrent requests.
 
+> [!NOTE]
+> **Dynamic Engine Loading & Capability Probing**
+> Under the hood, Bloc loads engines dynamically via a Plugin Registry architecture. Instead of hardcoding flag names, Bloc performs **Capability Probing** on the engine binary at startup to ensure it uses the correct flag syntax for the specific version installed on your system.
+
 ---
 
 ## 2. Supported Runtimes
@@ -37,6 +41,15 @@ A **Runtime** is the environment where the engine runs. Each engine can run in o
 > ```bash
 > bloc deploy arnav/qwen3-7b --runtime docker
 > ```
+
+---
+
+### Execution Supervisor
+
+Regardless of the chosen runtime, execution is managed by a shared internal `process.Supervisor`. This ensures consistent behavior across all environments:
+* **Readiness Polling:** The CLI automatically polls the `/health` endpoint and waits until the model is fully loaded into VRAM before reporting success.
+* **Startup Timeout:** A default 5-minute startup timeout prevents hung models from creating zombie processes.
+* **Log Persistence:** Logs are fanned out both to your terminal and to a persistent file.
 
 ---
 
