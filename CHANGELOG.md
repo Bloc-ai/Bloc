@@ -1,3 +1,6 @@
+# v0.6.3 (June 2026)
+- Fixed --port flag being misclassified as a boolean implicit (no value) flag by inferValueType, causing llama-server to exit immediately with "expected value for argument". Added PORT to the string-value placeholder token list alongside the HOST fix from v0.6.2.
+
 # v0.6.2 (June 2026)
 - Fixed a bug where --host was misclassified as a boolean implicit flag, causing the next flag (--port) to be consumed as the hostname and llama-server to fail on startup. Added HOST, ADDR, and IP to string-value type inference to resolve this.
 
