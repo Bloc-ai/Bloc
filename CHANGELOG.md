@@ -1,3 +1,7 @@
+# v0.6.1 (June 2026)
+- Stabilized Windows and Unix CI tests by replacing flaky shell wrappers (`pause`, `timeout`, `sh -c`) with a native Go `blocker` binary.
+- Bypassed `syscall.SIGTERM` signal usage on Windows to fix a persistent 5-second process kill timeout delay.
+
 # v0.6.0 (June 2026)
 - Core Engine Rebuild & Runtime System Redesign
   - Unified all inference backends under a common `Engine` interface (`llama.cpp`, `vLLM`, and `SGLang`), allowing seamless plug-and-play capability.
