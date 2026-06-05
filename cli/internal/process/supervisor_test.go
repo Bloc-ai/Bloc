@@ -134,7 +134,15 @@ func TestSupervisor_NonZeroExit(t *testing.T) {
 // TestSupervisor_ContextCancel verifies that cancelling the context kills the
 // process and Run returns promptly (within 8 seconds for a 60-second sleeper).
 func TestSupervisor_ContextCancel(t *testing.T) {
-	sv := newSupervisor(t, `sleep 60`, "", nil, true)
+	// Use direct exec to avoid /bin/sh child process leaks
+	cmd := exec.Command("sleep", "60")
+	sv, err := process.New(process.Config{
+		Cmd:    cmd,
+		Silent: true,
+	})
+	if err != nil {
+		t.Fatalf("process.New: %v", err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -374,10 +382,22 @@ func TestSupervisor_ConcurrentRace(t *testing.T) {
 // bufio.Scanner 64KB buffer do not cause ErrTooLong (PERF-05: 256KB buffer).
 func TestSupervisor_LargeOutputLines(t *testing.T) {
 	// Generate a line of exactly 200 KB (> default 64 KB scanner limit).
-	bigLine := strings.Repeat("x", 200*1024)
-	sv := newSupervisor(t, fmt.Sprintf(`printf '%s\n'`, bigLine), "", nil, true)
+	// To avoid OS argument length limits, we pass the data via stdin to cat
+	// instead of using a shell command line argument.
+	bigLine := strings.Repeat("x", 200*1024) + "\n"
+	cmd := exec.Command("cat")
+	// Set stdin to our big string so it's read by cat and written to stdout
+	cmd.Stdin = strings.NewReader(bigLine)
+	
+	sv, err := process.New(process.Config{
+		Cmd:    cmd,
+		Silent: true,
+	})
+	if err != nil {
+		t.Fatalf("process.New: %v", err)
+	}
 
-	_, err := sv.Run(context.Background())
+	_, err = sv.Run(context.Background())
 	if err != nil {
 		t.Errorf("Run returned error on 200KB line (expected no ErrTooLong): %v", err)
 	}
@@ -386,7 +406,8 @@ func TestSupervisor_LargeOutputLines(t *testing.T) {
 // TestSupervisor_SignalKill verifies that sending SIGTERM to a long-running
 // process causes Run to return promptly.
 func TestSupervisor_SignalKill(t *testing.T) {
-	cmd := shellCmd(`sleep 60`)
+	// Direct exec to avoid shell child process leak
+	cmd := exec.Command("sleep", "60")
 	sv, err := process.New(process.Config{
 		Cmd:    cmd,
 		Silent: true,
