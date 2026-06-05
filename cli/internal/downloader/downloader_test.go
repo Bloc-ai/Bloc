@@ -1,6 +1,11 @@
 package downloader
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -89,5 +94,91 @@ func TestDeleteCachedModel_NoDeadlock(t *testing.T) {
 	// Verify physical file was removed
 	if _, err := os.Stat(dummyFile); !os.IsNotExist(err) {
 		t.Error("expected dummy model file to be removed from disk cache")
+	}
+}
+
+// TestEnsureDownloaded_TransientNetworkRetry verifies that the downloader can
+// recover from a transient network connection interruption mid-stream and
+// complete the download using a Range request (D4 fix).
+func TestEnsureDownloaded_TransientNetworkRetry(t *testing.T) {
+	// 1. Setup mock server that drops connection on the first request and returns remaining bytes on the second.
+	calledCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calledCount++
+		rangeHeader := r.Header.Get("Range")
+
+		if rangeHeader == "" {
+			// First request: Write partial bytes (must contain GGUF magic bytes start) and close abruptly
+			w.Header().Set("Content-Length", "10")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("GGUF")) // 4 bytes of GGUF magic
+			_, _ = w.Write([]byte("a"))    // 5th byte
+
+			// Flush the buffer to the client before hijacking
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+
+			// Hijack the connection and close it abruptly to simulate network reset/failure
+			hj, ok := w.(http.Hijacker)
+			if !ok {
+				t.Error("http.ResponseWriter does not support http.Hijacker")
+				return
+			}
+			conn, _, err := hj.Hijack()
+			if err == nil {
+				conn.Close()
+			}
+			return
+		}
+
+		// Second request: Expect range bytes=5-
+		if rangeHeader == "bytes=5-" {
+			w.WriteHeader(http.StatusPartialContent)
+			_, _ = w.Write([]byte("bcdef")) // remaining 5 bytes
+			return
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer srv.Close()
+
+	// 2. Setup temporary cache directory
+	tmpDir, err := os.MkdirTemp("", "bloc-test-cache-d4-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	m, err := NewManager(tmpDir)
+	if err != nil {
+		t.Fatalf("failed to create manager: %v", err)
+	}
+
+	// Calculate SHA256 of the complete expected payload ("GGUFabcdef")
+	payload := []byte("GGUFabcdef")
+	hasher := sha256.New()
+	hasher.Write(payload)
+	expectedSHA256 := hex.EncodeToString(hasher.Sum(nil))
+
+	// 3. Call EnsureDownloaded, which should trigger the retry loop
+	ctx := context.Background()
+	linkPath, err := m.EnsureDownloaded(ctx, "test-model.gguf", srv.URL, expectedSHA256, 0.0, nil)
+	if err != nil {
+		t.Fatalf("EnsureDownloaded failed: %v", err)
+	}
+
+	// 4. Verify file content matches expected complete payload
+	data, err := os.ReadFile(linkPath)
+	if err != nil {
+		t.Fatalf("failed to read downloaded file: %v", err)
+	}
+
+	if string(data) != string(payload) {
+		t.Errorf("downloaded file content mismatch: got %q, want %q", string(data), string(payload))
+	}
+
+	if calledCount < 2 {
+		t.Errorf("expected at least 2 server calls, got %d", calledCount)
 	}
 }

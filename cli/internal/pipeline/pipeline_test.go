@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bloc-org/bloc/internal/pipeline"
 	"github.com/bloc-org/bloc/internal/recipe"
@@ -167,6 +168,9 @@ func TestRunState_ResolvedPort_FromRecipe(t *testing.T) {
 // ─── FetchRecipeStage — local path detection ──────────────────────────────────
 
 func TestFetchRecipeStage_Local_NotFound(t *testing.T) {
+	// With the Bug 13 fix, a non-existent .yaml path is no longer treated as
+	// local — it falls through to fetchRemote, which returns an "invalid recipe ID"
+	// error because the path has slashes.
 	stage := &pipeline.FetchRecipeStage{}
 	state := &pipeline.RunState{
 		RecipeID: "/definitely/does/not/exist.yaml",
@@ -176,8 +180,71 @@ func TestFetchRecipeStage_Local_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for non-existent local file")
 	}
-	if !strings.Contains(err.Error(), "cannot parse local recipe") {
+	// Now falls through to fetchRemote — gets "invalid recipe ID" or "invalid author"
+	if !strings.Contains(err.Error(), "invalid") {
 		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+// TestFetchRecipeStage_LocalYAML_Exists verifies that an existing .yaml file is
+// correctly treated as local (Bug 13: existence check for .yaml paths).
+func TestFetchRecipeStage_LocalYAML_Exists(t *testing.T) {
+	// Write a minimal valid YAML recipe to a temp file.
+	yamlContent := []byte(`schema: "bloc/v1"
+metadata:
+  name: "local-test"
+  description: "local test recipe"
+model:
+  file: "local.gguf"
+  download_url: "https://example.com/local.gguf"
+  size_gb: 1.0
+engine:
+  name: "llama.cpp"
+`)
+	tmpFile, err := os.CreateTemp(t.TempDir(), "recipe-*.yaml")
+	if err != nil {
+		t.Fatalf("CreateTemp: %v", err)
+	}
+	if _, err := tmpFile.Write(yamlContent); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	tmpFile.Close()
+
+	stage := &pipeline.FetchRecipeStage{}
+	state := &pipeline.RunState{
+		RecipeID: tmpFile.Name(),
+		APIBase:  "https://example.com",
+	}
+	if err := stage.Run(context.Background(), state); err != nil {
+		t.Fatalf("unexpected error for existing local file: %v", err)
+	}
+	if !state.IsLocal {
+		t.Error("expected state.IsLocal = true for local file")
+	}
+	if state.Recipe == nil || state.Recipe.Metadata.Name != "local-test" {
+		t.Errorf("expected recipe name 'local-test', got %v", state.Recipe)
+	}
+}
+
+// TestFetchRecipeStage_TypoYAML_GivesClearError verifies that a typo in a .yaml
+// filename (file doesn't exist) produces a clear error instead of
+// "cannot parse local recipe" (Bug 13 fix).
+func TestFetchRecipeStage_TypoYAML_GivesClearError(t *testing.T) {
+	stage := &pipeline.FetchRecipeStage{}
+	state := &pipeline.RunState{
+		RecipeID: "my-modeel.yaml", // typo — file doesn't exist
+		APIBase:  "https://example.com",
+	}
+	err := stage.Run(context.Background(), state)
+	if err == nil {
+		t.Fatal("expected error for non-existent yaml file")
+	}
+	// Should get "invalid recipe ID" (falls through to remote), NOT "cannot parse local recipe"
+	if strings.Contains(err.Error(), "cannot parse local recipe") {
+		t.Errorf("Bug 13: got misleading 'cannot parse local recipe' for a typo'd filename: %v", err)
+	}
+	if !strings.Contains(err.Error(), "invalid recipe ID") {
+		t.Errorf("expected 'invalid recipe ID' error for typo'd yaml name, got: %v", err)
 	}
 }
 
@@ -434,4 +501,36 @@ func mustMarshalString(s string) []byte {
 	}
 	b.WriteByte('"')
 	return []byte(b.String())
+}
+
+// TestWaitForEngineReady_ContextCancel verifies that if the context passed to
+// waitForEngineReady is cancelled, it returns immediately with context.Canceled.
+func TestWaitForEngineReady_ContextCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel it immediately
+
+	engineDone := make(chan error, 1)
+	err := pipeline.WaitForEngineReadyForTest(ctx, "http://127.0.0.1:12345/health", 10*time.Second, "", engineDone)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected context.Canceled, got: %v", err)
+	}
+}
+
+// TestWaitForEngineReady_EngineCrash verifies that if the engine exits before
+// becoming ready, waitForEngineReady returns the exit error immediately.
+func TestWaitForEngineReady_EngineCrash(t *testing.T) {
+	ctx := context.Background()
+	engineDone := make(chan error, 1)
+	engineDone <- errors.New("oom-killed")
+
+	err := pipeline.WaitForEngineReadyForTest(ctx, "http://127.0.0.1:12345/health", 10*time.Second, "", engineDone)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "engine exited before becoming ready") || !strings.Contains(err.Error(), "oom-killed") {
+		t.Errorf("expected engine exited error wrapping 'oom-killed', got: %v", err)
+	}
 }

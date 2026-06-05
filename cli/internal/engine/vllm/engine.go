@@ -35,9 +35,8 @@ type NativeVLLMEngine struct {
 	// PH-2: Cache Capabilities() result so the Python subprocess is only
 	// spawned once per engine instance, matching the pattern in llamacpp.Engine
 	// and docker.DockerEngine.
-	capsOnce sync.Once
-	caps     *engine.CapabilitySet
-	capsErr  error
+	capsMu sync.Mutex
+	caps   *engine.CapabilitySet
 }
 
 func resolveVersion(recipePinned string) string {
@@ -98,10 +97,17 @@ func (e *NativeVLLMEngine) Name() string {
 }
 
 func (e *NativeVLLMEngine) Capabilities(ctx context.Context) (*engine.CapabilitySet, error) {
-	e.capsOnce.Do(func() {
-		e.caps, e.capsErr = e.probe(ctx)
-	})
-	return e.caps, e.capsErr
+	e.capsMu.Lock()
+	defer e.capsMu.Unlock()
+	if e.caps != nil {
+		return e.caps, nil
+	}
+	caps, err := e.probe(ctx)
+	if err != nil {
+		return nil, err
+	}
+	e.caps = caps
+	return e.caps, nil
 }
 
 // probe is the internal implementation of Capabilities.

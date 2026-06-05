@@ -1,7 +1,9 @@
-# v0.7.0 (June 2026)
-- Implemented port availability checking before starting the engine and TUI to prevent launch corruption and port conflicts.
-- Delayed engine exit logging to prevent raw error streams from corrupting the Bubble Tea screen during active runs.
-- Enhanced engine subprocess lifecycle management to cleanly terminate processes on TUI exit, preventing orphaned instances.
+# v0.6.4 (June 2026)
+- **Downloader & Cache Security**: Added transient network error retries, concurrent download safety via unique temp files, and GGUF/size validation to evict corrupt cache entries.
+- **Process Supervisor & Lifecycle**: Added 5s SIGKILL group escalation on close, linked pre-run scripts to context cancel, and fixed health poller context to detect crashes instantly.
+- **Capabilities Cache**: Replaced sync.Once with mutex to avoid caching cancelled context errors.
+- **CLI Commands**: Raised update size limit to 500MB, fixed division-by-zero progress crash, and validated local YAML path existence to report typos cleanly.
+- **Port & Logging**: Added startup port collision checking and delayed exit logging to protect TUI screens.
 
 # v0.6.3 (June 2026)
 - Fixed --port flag being misclassified as a boolean implicit (no value) flag by inferValueType, causing llama-server to exit immediately with "expected value for argument". Added PORT to the string-value placeholder token list alongside the HOST fix from v0.6.2.

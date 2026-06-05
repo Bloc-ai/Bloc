@@ -109,7 +109,7 @@ func (s *LaunchStage) Run(ctx context.Context, state *RunState) error {
 
 	// ── Poll /health (Fix 5) ─────────────────────────────────────────────────
 	healthURL := fmt.Sprintf("http://127.0.0.1:%d/health", port)
-	if err := waitForEngineReady(ctx, healthURL, engineReadyTimeout, state.LogPath, engineDone); err != nil {
+	if err := waitForEngineReady(launchCtx, healthURL, engineReadyTimeout, state.LogPath, engineDone); err != nil {
 		// Engine crashed or timed out — clean up and surface the error.
 		// Drain engineDone defensively; waitForEngineReady may have consumed it.
 		select {

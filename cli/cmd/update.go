@@ -369,12 +369,20 @@ func extractTarGz(r io.Reader, destPath string) error {
 			if err != nil {
 				return err
 			}
-			// SEC-13 (L-1): Mitigate tar bomb attacks by limiting extracted file size (250MB max)
-			limitReader := io.LimitReader(tr, 250*1024*1024)
-			_, err = io.Copy(destFile, limitReader)
+			// SEC-13 (L-1): Mitigate tar bomb attacks by limiting extracted file size
+			const maxBinarySize = 500 * 1024 * 1024 // 500MB
+			limitReader := io.LimitReader(tr, maxBinarySize+1)
+			n, err := io.Copy(destFile, limitReader)
 			destFile.Close()
 			if err != nil {
 				return err
+			}
+			if n > maxBinarySize {
+				return fmt.Errorf("downloaded binary exceeds maximum expected size (500 MB); aborting update")
+			}
+			info, err := os.Stat(destPath)
+			if err != nil || info.Size() == 0 {
+				return fmt.Errorf("downloaded binary is empty or unreadable; aborting update")
 			}
 			return nil
 		}
@@ -401,13 +409,21 @@ func extractZip(zipPath, destPath string) error {
 				rc.Close()
 				return err
 			}
-			// SEC-13 (L-1): Mitigate zip bomb attacks by limiting extracted file size (250MB max)
-			limitReader := io.LimitReader(rc, 250*1024*1024)
-			_, err = io.Copy(destFile, limitReader)
+			// SEC-13 (L-1): Mitigate zip bomb attacks by limiting extracted file size
+			const maxBinarySize = 500 * 1024 * 1024 // 500MB
+			limitReader := io.LimitReader(rc, maxBinarySize+1)
+			n, err := io.Copy(destFile, limitReader)
 			rc.Close()
 			destFile.Close()
 			if err != nil {
 				return err
+			}
+			if n > maxBinarySize {
+				return fmt.Errorf("downloaded binary exceeds maximum expected size (500 MB); aborting update")
+			}
+			info, err := os.Stat(destPath)
+			if err != nil || info.Size() == 0 {
+				return fmt.Errorf("downloaded binary is empty or unreadable; aborting update")
 			}
 			return nil
 		}

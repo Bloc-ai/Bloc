@@ -133,9 +133,13 @@ func (s *FetchRecipeStage) fetchRemote(state *RunState) error {
 // isLocalRecipePath returns true when the ID looks like a local file path.
 // SEC-10: only treats as local if it has a YAML extension or is an explicit
 // path with a separator AND the file exists.
+// Bug 13: .yaml/.yml suffixes are also checked for existence — a typo like
+// "my-modeel.yaml" falls through to the remote fetch path and returns a
+// clear "not found" error instead of "cannot parse local recipe".
 func isLocalRecipePath(path string) bool {
 	if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".yml") {
-		return true
+		_, err := os.Stat(path)
+		return err == nil
 	}
 	if strings.Contains(path, "/") || strings.Contains(path, "\\") {
 		if _, err := os.Stat(path); err == nil {

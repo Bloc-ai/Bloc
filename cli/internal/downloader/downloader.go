@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -142,16 +143,70 @@ func (m *Manager) RepoPath(hfRepo, revision string) string {
 	return filepath.Join(m.cacheDir, "repos", safe, revision)
 }
 
+// ggufMagic is the 4-byte magic number that starts every valid GGUF file.
+var ggufMagic = []byte{'G', 'G', 'U', 'F'}
+
+// validateGGUF opens the file at path and verifies the first 4 bytes are the
+// GGUF magic number. Returns a descriptive error if the file is corrupt,
+// truncated, or not a GGUF. Used both after download and on cache-hit checks.
+func validateGGUF(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("cannot open file for validation: %w", err)
+	}
+	defer f.Close()
+	header := make([]byte, 4)
+	if _, err := io.ReadFull(f, header); err != nil {
+		return fmt.Errorf("file too small to be a valid GGUF model (read error: %w)", err)
+	}
+	for i, b := range ggufMagic {
+		if header[i] != b {
+			return fmt.Errorf("invalid GGUF magic bytes: got %#v, expected %#v — file is corrupt or incomplete",
+				header, ggufMagic)
+		}
+	}
+	return nil
+}
+
 // IsAlreadyCached checks if a model file is already in the cache.
 // F-08: Validates by checking the in-memory index (which stores verified SHA256)
 // rather than trusting the symlink target filename.
-func (m *Manager) IsAlreadyCached(friendlyName, expectedSHA256 string) (bool, error) {
+// expectedSizeBytes: expected file size in bytes (0 = unknown, skips size check).
+func (m *Manager) IsAlreadyCached(friendlyName, expectedSHA256 string, expectedSizeBytes int64) (bool, error) {
 	linkPath := m.ModelPath(friendlyName)
 
-	// If no SHA256 provided, just check if the symlink/file exists
+	// If no SHA256 provided, check existence + size + GGUF magic.
 	if expectedSHA256 == "" {
-		_, err := os.Stat(linkPath)
-		return err == nil, nil
+		stat, err := os.Stat(linkPath)
+		if err != nil {
+			return false, nil
+		}
+		// Size check: if we know the expected size, reject files that are
+		// significantly smaller (truncated download).
+		if expectedSizeBytes > 0 {
+			const tolerancePct = 0.01 // 1% tolerance
+			minAcceptable := int64(float64(expectedSizeBytes) * (1 - tolerancePct))
+			if stat.Size() < minAcceptable {
+				// File is too small — evict and force re-download.
+				fmt.Fprintf(os.Stderr,
+					"  \033[33m⚠  Cached file %s is %d bytes but expected ~%d bytes — evicting corrupt cache entry\033[0m\n",
+					filepath.Base(linkPath), stat.Size(), expectedSizeBytes,
+				)
+				_ = os.Remove(linkPath)
+				return false, nil
+			}
+		}
+		// GGUF magic check: verify the file is a valid model, not a partial
+		// download or CDN error page.
+		if err := validateGGUF(linkPath); err != nil {
+			fmt.Fprintf(os.Stderr,
+				"  \033[33m⚠  Cached file %s failed GGUF validation (%v) — evicting and re-downloading\033[0m\n",
+				filepath.Base(linkPath), err,
+			)
+			_ = os.Remove(linkPath)
+			return false, nil
+		}
+		return true, nil
 	}
 
 	// F-08: Check in-memory index for a verified entry with matching SHA256.
@@ -165,12 +220,47 @@ func (m *Manager) IsAlreadyCached(friendlyName, expectedSHA256 string) (bool, er
 
 	// Verify the actual file still exists on disk (not just the index entry)
 	finalPath := filepath.Join(m.cacheDir, "models", entry.SHA256)
-	if _, err := os.Stat(finalPath); err != nil {
+	stat, err := os.Stat(finalPath)
+	if err != nil {
 		// File was deleted externally — remove stale index entry
 		m.indexMu.Lock()
 		delete(m.index, expectedSHA256)
 		m.indexMu.Unlock()
 		_ = m.writeIndexToDisk()
+		return false, nil
+	}
+
+	// Size sanity check even when we have a SHA256 index entry.
+	if expectedSizeBytes > 0 {
+		const tolerancePct = 0.01
+		minAcceptable := int64(float64(expectedSizeBytes) * (1 - tolerancePct))
+		if stat.Size() < minAcceptable {
+			fmt.Fprintf(os.Stderr,
+				"  \033[33m⚠  Indexed file %s is %d bytes but expected ~%d bytes — evicting corrupt cache entry\033[0m\n",
+				filepath.Base(finalPath), stat.Size(), expectedSizeBytes,
+			)
+			m.indexMu.Lock()
+			delete(m.index, expectedSHA256)
+			m.indexMu.Unlock()
+			_ = m.writeIndexToDisk()
+			_ = os.Remove(finalPath)
+			_ = os.Remove(linkPath)
+			return false, nil
+		}
+	}
+
+	// GGUF magic check on indexed files too.
+	if err := validateGGUF(finalPath); err != nil {
+		fmt.Fprintf(os.Stderr,
+			"  \033[33m⚠  Indexed file %s failed GGUF validation (%v) — evicting and re-downloading\033[0m\n",
+			filepath.Base(finalPath), err,
+		)
+		m.indexMu.Lock()
+		delete(m.index, expectedSHA256)
+		m.indexMu.Unlock()
+		_ = m.writeIndexToDisk()
+		_ = os.Remove(finalPath)
+		_ = os.Remove(linkPath)
 		return false, nil
 	}
 
@@ -186,8 +276,9 @@ func (m *Manager) IsAlreadyCached(friendlyName, expectedSHA256 string) (bool, er
 //
 // Fix #6: HF auth token injected into every download request.
 func (m *Manager) EnsureDownloaded(ctx context.Context, friendlyName, downloadURL, expectedSHA256 string, sizeGB float64, progress ProgressFn) (string, error) {
-	// Check cache first
-	cached, err := m.IsAlreadyCached(friendlyName, expectedSHA256)
+	// Check cache first, threading expected size for integrity validation.
+	expectedSizeBytes := int64(sizeGB * 1024 * 1024 * 1024)
+	cached, err := m.IsAlreadyCached(friendlyName, expectedSHA256, expectedSizeBytes)
 	if err == nil && cached {
 		return m.ModelPath(friendlyName), nil
 	}
@@ -207,7 +298,7 @@ func (m *Manager) EnsureDownloaded(ctx context.Context, friendlyName, downloadUR
 	// multi-GB partial file from disk before receiving any new bytes.
 	buf := make([]byte, 1<<20) // 1 MB — allocated once outside the retry loop
 
-	const maxRetries = 2
+	const maxRetries = 5
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// Get size of partial file for resume
 		var startByte int64
@@ -279,7 +370,22 @@ func (m *Manager) EnsureDownloaded(ctx context.Context, friendlyName, downloadUR
 		hasher := sha256.New()
 		if startByte > 0 && expectedSHA256 != "" {
 			if _, seekErr := f.Seek(0, io.SeekStart); seekErr == nil {
-				io.CopyBuffer(hasher, io.LimitReader(f, startByte), buf) //nolint:errcheck // best-effort pre-seed
+				// Fix #3: If pre-seeding fails, the partial file is unreadable or
+				// corrupt. Delete it and restart the download from byte 0 rather
+				// than continuing with a poisoned hasher that will never produce
+				// the correct final SHA256.
+				if _, copyErr := io.CopyBuffer(hasher, io.LimitReader(f, startByte), buf); copyErr != nil {
+					f.Close()
+					resp.Body.Close()
+					_ = os.Remove(partialPath)
+					fmt.Fprintf(os.Stderr,
+						"  \033[33m⚠  Partial file is unreadable (%v) — discarding and restarting download\033[0m\n",
+						copyErr,
+					)
+					// Reset startByte so the next iteration starts fresh.
+					startByte = 0
+					continue
+				}
 			}
 			// Position at end for appending new bytes.
 			if _, seekErr := f.Seek(0, io.SeekEnd); seekErr != nil {
@@ -338,14 +444,43 @@ func (m *Manager) EnsureDownloaded(ctx context.Context, friendlyName, downloadUR
 		resp.Body.Close()
 
 		if streamErr != nil {
-			return "", fmt.Errorf("download interrupted: %w", streamErr)
+			if !isTransientNetErr(streamErr) || attempt == maxRetries-1 {
+				return "", fmt.Errorf("download interrupted: %w", streamErr)
+			}
+			// Transient error — wait and retry from current offset
+			backoff := time.Duration(attempt+1) * 2 * time.Second
+			fmt.Fprintf(os.Stderr, "\n  ⚠  Network error (%v), retrying in %s...\n", streamErr, backoff)
+			time.Sleep(backoff)
+			continue
 		}
 
-		// Verify SHA256 if provided
+		// Fix #1: Verify GGUF magic bytes before accepting the downloaded file.
+		// This catches truncated CDN responses, corrupt transfers, and any other
+		// case where the file content is not a valid GGUF model.
+		if err := validateGGUF(partialPath); err != nil {
+			_ = os.Remove(partialPath)
+			return "", fmt.Errorf("downloaded file is not a valid GGUF model: %w — file deleted", err)
+		}
+
+		// Fix #2: When no SHA256 is provided in the recipe, validate by size.
+		// This catches truncated downloads where the server returned HTTP 200
+		// but streamed fewer bytes than expected (e.g., cached CDN partial).
 		actualSHA256 := hex.EncodeToString(hasher.Sum(nil))
 		if expectedSHA256 != "" && !strings.EqualFold(actualSHA256, expectedSHA256) {
 			os.Remove(partialPath)
 			return "", fmt.Errorf("SHA256 mismatch: expected %s, got %s — file deleted", expectedSHA256, actualSHA256)
+		}
+		if expectedSHA256 == "" && sizeGB > 0 {
+			expectedBytes := int64(sizeGB * 1024 * 1024 * 1024)
+			const tolerancePct = 0.01 // 1%
+			minAcceptable := int64(float64(expectedBytes) * (1 - tolerancePct))
+			if downloaded < minAcceptable {
+				_ = os.Remove(partialPath)
+				return "", fmt.Errorf(
+					"download appears truncated: got %d bytes but expected ~%d bytes (%.1f GB) — file deleted",
+					downloaded, expectedBytes, sizeGB,
+				)
+			}
 		}
 
 		// Determine final hash-addressed path
@@ -397,7 +532,19 @@ func (m *Manager) EnsureDownloaded(ctx context.Context, friendlyName, downloadUR
 		return linkPath, nil
 	}
 
-	return "", fmt.Errorf("download failed after %d attempts (server rejected range request)", maxRetries)
+	return "", fmt.Errorf("download failed after %d attempts (server rejected range request or network issue)", maxRetries)
+}
+
+// isTransientNetErr returns true for connection resets, timeouts, etc.
+func isTransientNetErr(err error) bool {
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	return false
 }
 
 // ─── HuggingFace Repository Downloader ───────────────────────────────────────
@@ -710,7 +857,7 @@ func (m *Manager) downloadRepoFile(ctx context.Context, hfRepo, revision, repoDi
 	}
 
 	// Write directly to the target path (atomic on completion via rename)
-	tmpPath := localPath + ".tmp"
+	tmpPath := localPath + ".tmp." + randomHex8()
 	f, err := os.Create(tmpPath)
 	if err != nil {
 		return fmt.Errorf("cannot create file: %w", err)

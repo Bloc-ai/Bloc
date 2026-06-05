@@ -431,3 +431,33 @@ func TestSupervisor_SignalKill(t *testing.T) {
 		t.Error("Run did not return within 7s after SIGTERM")
 	}
 }
+
+// TestSupervisor_LogFileOpenedBeforeStart verifies that the log file is opened/created
+// before cmd.Start() is called (BUG-4 fix validation).
+func TestSupervisor_LogFileOpenedBeforeStart(t *testing.T) {
+	logPath := tempLog(t)
+	// Use an invalid command that will fail cmd.Start() immediately.
+	cmd := exec.Command("nonexistent-executable-for-test")
+	sv, err := process.New(process.Config{
+		Cmd:     cmd,
+		LogPath: logPath,
+		Silent:  true,
+	})
+	if err != nil {
+		t.Fatalf("process.New: %v", err)
+	}
+
+	_, runErr := sv.Run(context.Background())
+	if runErr == nil {
+		t.Fatal("expected Run to fail for nonexistent executable")
+	}
+
+	// Verify the log file was actually created/opened.
+	if _, err := os.Stat(logPath); err != nil {
+		if os.IsNotExist(err) {
+			t.Error("expected log file to be created before cmd.Start() failed, but it does not exist")
+		} else {
+			t.Errorf("failed to stat log file: %v", err)
+		}
+	}
+}

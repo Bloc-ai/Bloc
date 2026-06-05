@@ -166,10 +166,6 @@ func (sv *Supervisor) Run(ctx context.Context) (*Stats, error) {
 	stats := &Stats{}
 	startTime := time.Now()
 
-	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start process: %w", err)
-	}
-
 	// Determine the log writer. If the caller supplied an open file, use it
 	// directly (RACE-4: caller must not close it until after Run returns).
 	// Otherwise open LogPath if provided.
@@ -184,6 +180,10 @@ func (sv *Supervisor) Run(ctx context.Context) (*Stats, error) {
 			logWriter = f
 			defer f.Close()
 		}
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start process: %w", err)
 	}
 
 	// ── Fan-out goroutines (PERF-05: 256 KB scanner buffer prevents ErrTooLong)

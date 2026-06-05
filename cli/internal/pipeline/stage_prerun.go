@@ -27,7 +27,7 @@ type PreRunStage struct{}
 
 func (s *PreRunStage) Name() string { return "Pre-run setup" }
 
-func (s *PreRunStage) Run(_ context.Context, state *RunState) error {
+func (s *PreRunStage) Run(ctx context.Context, state *RunState) error {
 	cmds := state.Recipe.PreRun.Commands
 	if len(cmds) == 0 {
 		// Nothing to do — print nothing and move on silently.
@@ -57,7 +57,7 @@ func (s *PreRunStage) Run(_ context.Context, state *RunState) error {
 	}
 
 	for _, c := range cmds {
-		if err := runShellCommand(c, state.Recipe.PreRun.Env); err != nil {
+		if err := runShellCommand(ctx, c, state.Recipe.PreRun.Env); err != nil {
 			return fmt.Errorf("pre-run command failed: %w", err)
 		}
 	}
@@ -96,10 +96,11 @@ var envKeyRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 // runShellCommand executes a single shell command token-split by whitespace.
 // env is a map of additional KEY=VALUE pairs to inject.
 //
-// SEC-02: No shell is invoked — exec.Command splits on whitespace and runs directly.
+// SEC-02: No shell is invoked — exec.CommandContext splits on whitespace and runs directly.
 // SEC-03: A minimal, safe environment is constructed rather than inheriting
 // os.Environ(). Dynamic linker and interpreter hijack variables are stripped.
-func runShellCommand(command string, env map[string]string) error {
+// Bug 11: ctx is passed so Ctrl+C during a pre-run command kills the child process.
+func runShellCommand(ctx context.Context, command string, env map[string]string) error {
 	parts := strings.Fields(command)
 	if len(parts) == 0 {
 		return nil
@@ -142,7 +143,7 @@ func runShellCommand(command string, env map[string]string) error {
 		safeEnv = append(safeEnv, k+"="+v)
 	}
 
-	cmd := exec.Command(bin, parts[1:]...)
+	cmd := exec.CommandContext(ctx, bin, parts[1:]...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = safeEnv

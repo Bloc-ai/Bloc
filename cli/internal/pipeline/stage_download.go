@@ -94,7 +94,8 @@ func (s *DownloadModelStage) ensureHFRepo(ctx context.Context, state *RunState, 
 func (s *DownloadModelStage) ensureFile(ctx context.Context, state *RunState, dm *downloader.Manager) error {
 	r := state.Recipe
 
-	cached, _ := dm.IsAlreadyCached(r.Model.File, r.Model.SHA256)
+	expectedSizeBytes := int64(r.Model.SizeGB * 1024 * 1024 * 1024)
+	cached, _ := dm.IsAlreadyCached(r.Model.File, r.Model.SHA256, expectedSizeBytes)
 	if cached {
 		state.ModelPath = dm.ModelPath(r.Model.File)
 		fmt.Fprintf(os.Stderr, "  \033[32m✓\033[0m  Already cached: %s\n", state.ModelPath)
@@ -120,7 +121,10 @@ func (s *DownloadModelStage) ensureFile(ctx context.Context, state *RunState, dm
 		r.Model.SHA256,
 		r.Model.SizeGB,
 		func(downloaded, total int64, speedMBs float64) {
-			pct := float64(downloaded) / float64(total) * 100
+			var pct float64
+			if total > 0 {
+				pct = float64(downloaded) / float64(total) * 100
+			}
 			bar := progressBar(int(pct), 30)
 			fmt.Fprintf(bw, "\r  %s %.1f/%.1f GB  [%s] %.0f%% @ %.1f MB/s",
 				r.Model.File,

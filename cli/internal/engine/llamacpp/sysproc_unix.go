@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"time"
 )
 
 // setSysProcAttr puts the child into its own process group (Setpgid=true).
@@ -22,4 +23,8 @@ func killProcessGroup(p *os.Process) {
 		return
 	}
 	_ = syscall.Kill(-p.Pid, syscall.SIGTERM)
+	go func() {
+		time.Sleep(5 * time.Second)
+		_ = syscall.Kill(-p.Pid, syscall.SIGKILL)
+	}()
 }

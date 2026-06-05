@@ -34,10 +34,9 @@ import (
 
 // Engine implements engine.Engine for llama-server.
 type Engine struct {
-	// capsOnce ensures the binary is probed exactly once per Engine instance.
-	capsOnce   sync.Once
+	// capsMu ensures the binary is probed exactly once per Engine instance on success.
+	capsMu     sync.Mutex
 	caps       *engine.CapabilitySet
-	capsErr    error
 	// PERF-20 (PM-9): Cache the resolved binary path from probe() so we don't
 	// do a second filesystem LookPath in NewSupervisor.
 	binaryPath string
@@ -62,10 +61,17 @@ func (e *Engine) Name() string { return "llama-server" }
 // The context is honoured: if it is cancelled before the binary exits,
 // Capabilities returns ctx.Err().
 func (e *Engine) Capabilities(ctx context.Context) (*engine.CapabilitySet, error) {
-	e.capsOnce.Do(func() {
-		e.caps, e.capsErr = e.probe(ctx)
-	})
-	return e.caps, e.capsErr
+	e.capsMu.Lock()
+	defer e.capsMu.Unlock()
+	if e.caps != nil {
+		return e.caps, nil
+	}
+	caps, err := e.probe(ctx)
+	if err != nil {
+		return nil, err
+	}
+	e.caps = caps
+	return e.caps, nil
 }
 
 // probe is the internal implementation of Capabilities.

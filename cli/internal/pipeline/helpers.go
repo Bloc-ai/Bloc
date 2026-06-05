@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -106,20 +107,38 @@ func openEngineLogFile(cacheDir, recipeName string) (*os.File, error) {
 
 // pruneEngineLogs removes all but the `keep` most-recent engine-*.log files
 // from logDir. Silent on errors — log rotation failure is never fatal.
+// Fix #5: Sort by modification time (not filename) so that logs for recipes
+// whose name sorts early alphabetically (e.g. "engine-gemma-...") are not
+// pruned before older logs for recipes that sort later (e.g. "engine-llama-...").
 func pruneEngineLogs(logDir string, keep int) error {
 	entries, err := os.ReadDir(logDir)
 	if err != nil {
 		return err
 	}
-	var logs []string
+	type logEntry struct {
+		path  string
+		mtime time.Time
+	}
+	var logs []logEntry
 	for _, e := range entries {
 		if !e.IsDir() && strings.HasPrefix(e.Name(), "engine-") && strings.HasSuffix(e.Name(), ".log") {
-			logs = append(logs, logDir+"/"+e.Name())
+			info, infoErr := e.Info()
+			if infoErr != nil {
+				continue
+			}
+			logs = append(logs, logEntry{
+				path:  filepath.Join(logDir, e.Name()),
+				mtime: info.ModTime(),
+			})
 		}
 	}
-	sort.Strings(logs) // ascending by name (timestamp embedded)
+	// Sort ascending by modification time — oldest first, newest last.
+	sort.Slice(logs, func(i, j int) bool {
+		return logs[i].mtime.Before(logs[j].mtime)
+	})
+	// Remove oldest entries until we are within the keep limit.
 	for len(logs) > keep {
-		_ = os.Remove(logs[0])
+		_ = os.Remove(logs[0].path)
 		logs = logs[1:]
 	}
 	return nil

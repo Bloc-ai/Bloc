@@ -2,7 +2,11 @@
 // white-box testing. This file is only compiled when running tests.
 package pipeline
 
-import "os"
+import (
+	"context"
+	"os"
+	"time"
+)
 
 // ErrDryRunDoneForTest returns the dry-run sentinel so test code can
 // assert pipeline.IsDryRunDone() without importing the concrete type.
@@ -19,4 +23,26 @@ func OpenEngineLogFileForTest(cacheDir, recipeName string) (*os.File, error) {
 // PruneEngineLogsForTest exposes pruneEngineLogs for unit testing.
 func PruneEngineLogsForTest(logDir string, keep int) error {
 	return pruneEngineLogs(logDir, keep)
+}
+
+// WaitForEngineReadyForTest exposes waitForEngineReady for unit testing.
+func WaitForEngineReadyForTest(
+	ctx context.Context,
+	healthURL string,
+	timeout time.Duration,
+	logPath string,
+	engineDone chan error,
+) error {
+	realEngineDone := make(chan engineResult, 1)
+	go func() {
+		if engineDone != nil {
+			err, ok := <-engineDone
+			if ok {
+				realEngineDone <- engineResult{
+					runErr: err,
+				}
+			}
+		}
+	}()
+	return waitForEngineReady(ctx, healthURL, timeout, logPath, realEngineDone)
 }
